@@ -33,7 +33,7 @@ skriptet `translate-srt.mjs`, men lägger till:
 ## Krav
 
 - macOS 14 (Sonoma) eller senare
-- Xcode 15 eller senare (eller Swift 5.9+ från Command Line Tools)
+- Fullständiga Xcode 15 eller senare (Command Line Tools räcker inte – SwiftUI:s makron, t.ex. `@State`, finns bara i Xcode)
 - En API-nyckel från [console.anthropic.com](https://console.anthropic.com)
 
 ## Bygga och starta

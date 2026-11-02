@@ -36,11 +36,7 @@ struct TranslationView: View {
             Divider()
             statusBar
         }
-        .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first(where: { $0.pathExtension.lowercased() == "srt" }) else { return false }
-            session.load(url: url)
-            return true
-        }
+        .dropDestination(for: URL.self) { urls, _ in handleDrop(urls) }
         .inspector(isPresented: $showInspector) {
             InspectorView(selectedSeq: $selectedSeq)
                 .inspectorColumnWidth(min: 280, ideal: 330, max: 460)
@@ -48,10 +44,7 @@ struct TranslationView: View {
         .toolbar { toolbar }
         .navigationTitle(session.fileURL?.lastPathComponent ?? "Översätt")
         .navigationSubtitle(session.profile.map { "Prompt: \($0.title)" } ?? "Standardstil")
-        .sheet(item: Binding(
-            get: { session.activeQuestion },
-            set: { if $0 == nil && session.activeQuestion != nil { session.answerActive(nil, saveToProfile: false) } }
-        )) { q in
+        .sheet(item: activeQuestionBinding) { q in
             QuestionSheet(question: q)
         }
         .sheet(isPresented: $session.showSuggestionsSheet) {
@@ -71,6 +64,28 @@ struct TranslationView: View {
         } message: {
             Text(session.errorMessage ?? "")
         }
+    }
+
+    // MARK: Hjälpare
+
+    private func handleDrop(_ urls: [URL]) -> Bool {
+        let srt: URL? = urls.first { url in url.pathExtension.lowercased() == "srt" }
+        guard let url = srt else { return false }
+        session.load(url: url)
+        return true
+    }
+
+    /// Stängs frågedialogen utan svar räknas det som "hoppa över".
+    private var activeQuestionBinding: Binding<TranslatorQuestion?> {
+        let session = self.session
+        return Binding<TranslatorQuestion?>(
+            get: { session.activeQuestion },
+            set: { newValue in
+                if newValue == nil && session.activeQuestion != nil {
+                    session.answerActive(nil, saveToProfile: false)
+                }
+            }
+        )
     }
 
     // MARK: Delar

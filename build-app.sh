@@ -3,6 +3,21 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# SwiftUI-makron (t.ex. @State) följer bara med fullständiga Xcode,
+# inte med Command Line Tools.
+DEV_DIR="$(xcode-select -p 2>/dev/null || true)"
+if [[ "$DEV_DIR" != *".app/Contents/Developer"* ]]; then
+    XCODE="$(ls -d /Applications/Xcode*.app 2>/dev/null | head -1 || true)"
+    if [[ -n "$XCODE" ]]; then
+        echo "→ Bygger med $XCODE (xcode-select pekar på $DEV_DIR)"
+        export DEVELOPER_DIR="$XCODE/Contents/Developer"
+    else
+        echo "✗ Xcode hittades inte. Command Line Tools räcker inte för SwiftUI-appar."
+        echo "  Installera Xcode från App Store, öppna det en gång och kör skriptet igen."
+        exit 1
+    fi
+fi
+
 swift build -c release
 
 APP="build/Undertextaren.app"
