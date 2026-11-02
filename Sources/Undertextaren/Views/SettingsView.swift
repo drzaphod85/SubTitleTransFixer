@@ -31,8 +31,19 @@ private struct GeneralSettings: View {
                     }
                     .disabled(keyDraft.isEmpty)
                 }
-                Text(keySaved ? "✓ Sparad i nyckelringen." : (s.hasAPIKey ? "En nyckel är sparad." : "Ingen nyckel sparad. Skapa en på console.anthropic.com."))
-                    .font(.caption).foregroundStyle(.secondary)
+                if let problem = s.keychainProblem {
+                    Label(problem, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if keySaved {
+                    Text("✓ Sparad i nyckelringen och läses därifrån vid varje start.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text(s.hasAPIKey ? "En nyckel är sparad (hämtad från \(s.apiKeySource))."
+                                     : "Ingen nyckel sparad. Skapa en på console.anthropic.com.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
 
                 Picker("Modell", selection: $s.model) {
                     ForEach(AppSettings.modelChoices) { m in Text(m.label).tag(m.id) }

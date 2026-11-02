@@ -58,8 +58,24 @@ PLIST
 # Få Finder/Dock att läsa in ikonen på nytt
 touch "$APP"
 
-# Ad hoc-signering så att appen kan startas lokalt och använda nyckelringen
-codesign --force --sign - "$APP" >/dev/null 2>&1 || true
+# Signering. Med ett utvecklarcertifikat får appen samma identitet vid varje
+# bygge, så att nyckelringen fortsätter släppa fram API-nyckeln. Ad hoc-signering
+# ger en ny identitet varje gång, och då nekas appen åtkomst efter ombygge.
+# Välj certifikat själv med: SIGN_IDENTITY="Apple Development: Namn (ID)" ./build-app.sh
+IDENTITY="${SIGN_IDENTITY:-}"
+if [[ -z "$IDENTITY" ]]; then
+    IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
+        | grep -E '"(Apple Development|Developer ID Application|Mac Developer|Undertextaren)' \
+        | head -1 | sed -E 's/.*"(.*)"/\1/' || true)"
+fi
+if [[ -n "$IDENTITY" ]]; then
+    codesign --force --sign "$IDENTITY" "$APP"
+    echo "✓ Signerad med: $IDENTITY"
+else
+    codesign --force --sign - "$APP" >/dev/null 2>&1 || true
+    echo "⚠ Inget utvecklarcertifikat hittades – appen ad hoc-signerades."
+    echo "  Nyckelringen kan då glömma API-nyckeln vid nästa bygge. Se README → API-nyckeln."
+fi
 
 echo "✓ Klar: $APP"
 echo "  Starta med: open \"$APP\""

@@ -37,8 +37,15 @@ final class AppSettings {
     var baseStyle: String { didSet { defaults.set(baseStyle, forKey: "baseStyle") } }
 
     var apiKey: String {
-        didSet { Keychain.save(apiKey) }
+        didSet {
+            let status = Keychain.save(apiKey)
+            keychainProblem = status == errSecSuccess ? nil : Keychain.accessHelp(status)
+        }
     }
+    /// Satt om nyckeln inte kunde läsas från eller sparas i nyckelringen.
+    var keychainProblem: String?
+    /// Var nyckeln kom ifrån vid start.
+    var apiKeySource = ""
 
     struct Choice: Identifiable, Hashable {
         let id: String
@@ -79,9 +86,19 @@ final class AppSettings {
         } else {
             baseStyle = storedStyle!
         }
-        apiKey = Keychain.read()
-            ?? ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"]
-            ?? ""
+        let stored = Keychain.read()
+        if let value = stored.value {
+            apiKey = value
+            apiKeySource = "nyckelringen"
+        } else if let env = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !env.isEmpty {
+            apiKey = env
+            apiKeySource = "miljövariabeln ANTHROPIC_API_KEY"
+        } else {
+            apiKey = ""
+        }
+        if stored.status != errSecSuccess && stored.status != errSecItemNotFound {
+            keychainProblem = Keychain.accessHelp(stored.status)
+        }
     }
 
     var target: Language { Language.find(targetLanguage) ?? .swedish }
@@ -101,37 +118,62 @@ final class AppSettings {
     }
 }
 
-/// Sparar API-nyckeln i macOS-nyckelringen.
+/// Sparar API-nyckeln i macOS-nyckelringen (posten "Undertextaren" i
+/// Nyckelhanteraren). Nyckeln läses därifrån vid varje start.
 enum Keychain {
     private static let service = "Undertextaren"
     private static let account = "anthropic-api-key"
 
-    static func read() -> String? {
-        let query: [String: Any] = [
+    private static var base: [String: Any] {
+        [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
         ]
-        var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-              let data = item as? Data,
-              let value = String(data: data, encoding: .utf8),
-              !value.isEmpty else { return nil }
-        return value
     }
 
-    static func save(_ value: String) {
-        let base: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        SecItemDelete(base as CFDictionary)
-        guard !value.isEmpty else { return }
-        var add = base
-        add[kSecValueData as String] = Data(value.utf8)
-        SecItemAdd(add as CFDictionary, nil)
+    /// Läser nyckeln. status är errSecSuccess, errSecItemNotFound eller ett fel
+    /// (t.ex. om nyckelringen nekade appen åtkomst).
+    static func read() -> (value: String?, status: OSStatus) {
+        var query = base
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        guard status == errSecSuccess,
+              let data = item as? Data,
+              let value = String(data: data, encoding: .utf8),
+              !value.isEmpty else { return (nil, status) }
+        return (value, status)
+    }
+
+    /// Sparar (eller tar bort, om value är tomt). Uppdaterar en befintlig post
+    /// i stället för att radera den, så att eventuella åtkomstregler behålls.
+    @discardableResult
+    static func save(_ value: String) -> OSStatus {
+        if value.isEmpty {
+            let status = SecItemDelete(base as CFDictionary)
+            return status == errSecItemNotFound ? errSecSuccess : status
+        }
+        let data = Data(value.utf8)
+        var status = SecItemUpdate(base as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if status == errSecItemNotFound {
+            var add = base
+            add[kSecValueData as String] = data
+            add[kSecAttrLabel as String] = "Undertextaren – Anthropic API-nyckel"
+            status = SecItemAdd(add as CFDictionary, nil)
+        }
+        return status
+    }
+
+    static func describe(_ status: OSStatus) -> String {
+        (SecCopyErrorMessageString(status, nil) as String?) ?? "felkod \(status)"
+    }
+
+    /// Förklaring till användaren när nyckelringen inte släpper fram nyckeln.
+    static func accessHelp(_ status: OSStatus) -> String {
+        "Nyckelringen nekade åtkomst (\(describe(status))). Det händer när appen har byggts om "
+            + "med ad hoc-signering. Bygg med ett utvecklarcertifikat (se README) och lägg in nyckeln en "
+            + "gång till. Hjälper inte det: ta bort posten ”Undertextaren” i Nyckelhanteraren och spara igen."
     }
 }

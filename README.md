@@ -79,6 +79,25 @@ Första gången: öppna **Inställningar (⌘,)** och klistra in API-nyckeln. De
 sparas i macOS-nyckelringen. Appen läser också miljövariabeln
 `ANTHROPIC_API_KEY` om den finns.
 
+## API-nyckeln och nyckelringen
+
+Nyckeln sparas i macOS-nyckelringen (posten *Undertextaren* i
+Nyckelhanteraren) och läses därifrån vid varje start. Nyckelringen släpper
+bara fram nyckeln till samma app som sparade den, och "samma app" avgörs av
+kodsigneringen. Därför signerar `build-app.sh` med ett utvecklarcertifikat om
+ett sådant finns:
+
+1. Öppna Xcode → **Inställningar → Konton** och lägg till ditt Apple-ID
+   (ett gratis konto räcker).
+2. Välj kontot → **Hantera certifikat… → + → Apple Development**.
+3. Bygg med `./build-app.sh`. Det står `✓ Signerad med: Apple Development …`.
+4. Lägg in API-nyckeln en sista gång. Frågar macOS om åtkomst till
+   nyckelringen, välj **Tillåt alltid**.
+
+Utan certifikat ad hoc-signeras appen, och då kan nyckeln behöva läggas in
+igen efter varje bygge. Om du har flera certifikat kan du välja ett med
+`SIGN_IDENTITY="Apple Development: …" ./build-app.sh`.
+
 ## Så används den
 
 1. Öppna eller släpp en engelsk `.srt` i fönstret (⌘O).
