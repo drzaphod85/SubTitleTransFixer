@@ -61,7 +61,7 @@ med knappen **Granska** i översättningsvyn.
 | Numrering | hopp och dubbletter (kan numreras om) |
 | Radlängd / läshastighet | fler än 2 rader, för långa rader, för hög CPS |
 | Formatering | tomma repliker, dubbla mellanslag, mellanslag i början/slutet, obalanserade `<i>`/`<b>`/`<u>`-taggar |
-| Interpunktion | mellanslag före skiljetecken (utom franska ! ? : ;), saknat mellanslag efter, parenteser och citattecken som inte går jämnt ut, liten bokstav efter avslutad mening |
+| Interpunktion | rad som börjar med t.ex. `!`, `&` eller `,`, mellanslag före skiljetecken (utom franska ! ? : ;), saknat mellanslag efter (kolon i `1:a`, `S:t`, `TV:n` godtas), parenteser och citattecken som inte går jämnt ut, liten bokstav efter avslutad mening |
 | Konsekvens | blandat `...`/`…`, blandade dialogstreck (`-`, `- `, `– `) |
 | Stavning | upprepade ord (”att att”) |
 

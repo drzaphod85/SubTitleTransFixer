@@ -127,11 +127,24 @@ enum SubtitleChecker {
                 text.replacingOccurrences(of: beforePattern, with: "$1", options: .regularExpression))
         }
 
-        // Saknat mellanslag efter skiljetecken
-        let afterPattern = #"([,;:!?])(?=\p{L})"#
-        if matches(text, afterPattern) {
-            add(.punctuation, .warning, "Saknat mellanslag efter skiljetecken.",
-                text.replacingOccurrences(of: afterPattern, with: "$1 ", options: .regularExpression))
+        // Saknat mellanslag efter skiljetecken. Kolon inne i ord är korrekt efter
+        // siffror och versaler (1:a, 2:e, S:t, TV:n, USA:s) och före korta
+        // ändelser (d:o), så det flaggas bara i fall som "sa:Hej".
+        let afterPattern = #"([,;!?])(?=\p{L})"#
+        let colonPattern = #"(?<![\p{N}\p{Lu}])(:)(?=\p{L})(?!\p{Ll}{1,3}\b)"#
+        if matches(text, afterPattern) || matches(text, colonPattern) {
+            let fixed = text
+                .replacingOccurrences(of: afterPattern, with: "$1 ", options: .regularExpression)
+                .replacingOccurrences(of: colonPattern, with: "$1 ", options: .regularExpression)
+            add(.punctuation, .warning, "Saknat mellanslag efter skiljetecken.", fixed)
+        }
+
+        // Rad som börjar med ett tecken som inte kan inleda en mening (! & , …).
+        // Inledande ... / … (fortsättning), ¿ ¡, citattecken och ♪ är korrekta.
+        let leadingPattern = #"(?m)^((?:<[^>]+>)*[ \t]*(?:[-–][ \t]*)?)(?!\.\.\.)([!?,.;:&)\]}%]+)[ \t]*"#
+        if let bad = firstMatch(text, leadingPattern, group: 2) {
+            add(.punctuation, .warning, "En rad börjar med ”\(bad)”, som inte kan inleda en mening.",
+                text.replacingOccurrences(of: leadingPattern, with: "$1", options: .regularExpression))
         }
 
         // Upprepade ord ("att att")
