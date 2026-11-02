@@ -93,6 +93,7 @@ struct ImportPromptsSheet: View {
         case .profile(var p):
             p.title = title.isEmpty ? p.title : title
             p.kind = c.kind
+            p.targetLanguage = c.targetLanguage
             if let target {
                 p.id = target.id
                 p.createdAt = target.createdAt
@@ -107,6 +108,7 @@ struct ImportPromptsSheet: View {
             if c.structureWithClaude {
                 let client = try model.settings.makeClient()
                 var p = try await ProfileGenerator.structure(text: text, title: title, kind: c.kind,
+                                                             target: Language.find(c.targetLanguage) ?? .swedish,
                                                              into: target, client: client)
                 if let target { p.id = target.id }
                 library.upsert(p)
@@ -115,6 +117,7 @@ struct ImportPromptsSheet: View {
             var p = target ?? SeriesProfile(title: title, kind: c.kind)
             if target == nil { p.title = title }
             p.kind = c.kind
+            p.targetLanguage = c.targetLanguage
             p.styleGuide = text
             library.upsert(p)
             return p.id
@@ -143,6 +146,11 @@ private struct ImportRow: View {
                 }
                 .labelsHidden()
                 .frame(width: 120)
+                Picker("Till", selection: $candidate.targetLanguage) {
+                    ForEach(Language.all) { lang in Text(lang.displayName).tag(lang.code) }
+                }
+                .frame(width: 170)
+                .help("Språket prompten gäller översättning till")
             }
             HStack {
                 Picker("Spara som", selection: $candidate.targetID) {

@@ -48,6 +48,19 @@ private struct GeneralSettings: View {
                 Toggle("Reservmodell om en förfrågan avböjs (server-side fallback)", isOn: $s.useFallbacks)
             }
 
+            Section("Språk") {
+                Picker("Översätt från", selection: $s.sourceLanguage) {
+                    Text("Automatiskt (känn igen språket)").tag(Language.auto)
+                    Divider()
+                    ForEach(Language.all) { lang in Text(lang.menuName).tag(lang.code) }
+                }
+                Picker("Översätt till", selection: $s.targetLanguage) {
+                    ForEach(Language.all) { lang in Text(lang.menuName).tag(lang.code) }
+                }
+                Text("Kan också ändras direkt i huvudfönstret. Språket känns igen med macOS inbyggda språkigenkänning och filnamnet (t.ex. _en, .ger).")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             Section("Översättning") {
                 Stepper("Repliker per anrop: \(s.batchSize)", value: $s.batchSize, in: 5...60, step: 5)
                 Stepper("Kontext (tidigare repliker): \(s.contextSize)", value: $s.contextSize, in: 0...20)
@@ -80,7 +93,7 @@ private struct StyleSettings: View {
     var body: some View {
         @Bindable var s = model.settings
         VStack(alignment: .leading, spacing: 8) {
-            Text("Grundstilen gäller alla översättningar. Verksprofilen läggs ovanpå. {MAX_LINE_LEN} och {MAX_CPS} ersätts med värdena under Allmänt.")
+            Text("Grundstilen gäller alla översättningar. Verksprofilen läggs ovanpå. Platshållare: {SOURCE_LANGUAGE} och {TARGET_LANGUAGE} blir språknamnen, {TARGET_RULES} målspråkets egna regler (t.ex. du/ni, du/Sie), {MAX_LINE_LEN} och {MAX_CPS} värdena under Allmänt.")
                 .font(.callout).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             TextEditor(text: $s.baseStyle)

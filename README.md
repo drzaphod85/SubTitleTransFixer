@@ -1,7 +1,7 @@
 # Undertextaren
 
-En Mac-app (Swift + SwiftUI) som översätter `.srt`-undertexter från engelska
-till svenska med Claude. Den bygger på samma logik och stilguide som
+En Mac-app (Swift + SwiftUI) som översätter `.srt`-undertexter mellan språk
+med Claude. Från början engelska → svenska, nu valfritt språkpar. Den bygger på samma logik och stilguide som
 skriptet `translate-srt.mjs`, men lägger till:
 
 - **Original och översättning sida vid sida.** Varje replik visas med nummer,
@@ -29,6 +29,23 @@ skriptet `translate-srt.mjs`, men lägger till:
   karaktärer, termer och iakttagelser som inte redan finns i prompten. När
   översättningen är klar frågar appen om prompten ska uppdateras, och du
   bockar i vad som ska sparas.
+
+## Språk
+
+- Välj **Från** och **Till** i raden ovanför replikerna (eller i Inställningar).
+  Ett 30-tal språk finns, bl.a. svenska, norska, danska, finska, engelska,
+  tyska, franska, spanska, italienska, polska, japanska och kinesiska.
+- **Från: Automatiskt** känner igen originalets språk med macOS inbyggda
+  språkigenkänning (NaturalLanguage – offline och gratis). Är texten tvetydig
+  används filnamnet (`_en`, `.ger`, `.French` …). Upptäckt språk och hur säker
+  igenkänningen är visas bredvid språkvalet.
+- Grundstilen är språkneutral; varje målspråk har egna regler (du/ni,
+  du/Sie, tu/vous, fransk typografi, spanska ¿¡ …).
+- Varje prompt har ett målspråk och hittas automatiskt bara när du översätter
+  till det språket. Finns en prompt för samma serie på ett annat språk kan du
+  använda den ändå, eller låta Claude skapa en version för det nya språket med
+  den gamla som underlag.
+- Det sparade filnamnet får målspråkets kod: `Show_en.srt` → `Show_de.srt`.
 
 ## Krav
 
@@ -71,8 +88,8 @@ sparas i macOS-nyckelringen. Appen läser också miljövariabeln
    översätts bara de repliker som saknar översättning.
 4. Granska resultatet. Använd filtren *Frågor*, *För långa*, *Redigerade* och
    *Fel*. Högerklicka på en replik för att översätta om den.
-5. Spara (⌘S). Filnamnet följer skriptets regel: `_en.srt` → `_sv.srt`,
-   `.en.srt` → `.sv.srt`, annars `.srt` → `.sv.srt`.
+5. Spara (⌘S). Språkkoden i filnamnet byts mot målspråkets:
+   `_en.srt` → `_sv.srt`, `.eng.srt` → `.sv.srt`, annars `.srt` → `.sv.srt`.
 
 ## Inställningar
 
@@ -129,6 +146,7 @@ Sources/Undertextaren/
 ├── UndertextarenApp.swift        appen, menyer, AppModel
 ├── Core/
 │   ├── SRT.swift                 parser/serialiserare, tidkoder, titel ur filnamn
+│   ├── Language.swift            språklista, målspråksregler, språkigenkänning
 │   ├── AnthropicClient.swift     Messages API (rå HTTP), retry/backoff, JSON-tolkning
 │   ├── PromptBuilder.swift       grundstil + verksprofil + beslut + svarsformat
 │   ├── TranslationSession.swift  översättningsmotor, frågor, förslag

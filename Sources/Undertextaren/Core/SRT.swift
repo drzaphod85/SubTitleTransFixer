@@ -62,13 +62,23 @@ enum SRT {
         return ((t[0] * 60 + t[1]) * 60 + t[2]) * 1000 + ms
     }
 
-    /// _en.srt -> _sv.srt, .en.srt -> .sv.srt, annars .srt -> .sv.srt
-    static func outputName(for inputName: String) -> String {
-        let lower = inputName.lowercased()
-        if lower.hasSuffix("_en.srt") { return String(inputName.dropLast(7)) + "_sv.srt" }
-        if lower.hasSuffix(".en.srt") { return String(inputName.dropLast(7)) + ".sv.srt" }
-        if lower.hasSuffix(".srt") { return String(inputName.dropLast(4)) + ".sv.srt" }
-        return inputName + ".sv.srt"
+    /// Byter språkkoden i filnamnet: "Show_en.srt" → "Show_sv.srt",
+    /// "Show.eng.srt" → "Show.de.srt", annars "Show.srt" → "Show.sv.srt".
+    static func outputName(for inputName: String, source: Language?, target: Language) -> String {
+        let ns = inputName as NSString
+        let ext = ns.pathExtension.isEmpty ? "srt" : ns.pathExtension
+        let base = ns.deletingPathExtension
+        let lower = base.lowercased()
+        // Försök först med källspråkets koder, sedan med alla kända språk.
+        let candidates = [source?.fileTokens ?? []] + Language.all.map(\.fileTokens)
+        for tokens in candidates {
+            for token in tokens.sorted(by: { $0.count > $1.count }) {
+                for sep in ["_", ".", "-"] where lower.hasSuffix(sep + token) {
+                    return String(base.dropLast(token.count + 1)) + sep + target.code + "." + ext
+                }
+            }
+        }
+        return base + "." + target.code + "." + ext
     }
 
     /// Läser text med rimliga fallback-teckenkodningar.
@@ -95,7 +105,9 @@ enum TitleMatcher {
         "hevc", "aac", "ac3", "dts", "proper", "repack", "subs", "sub", "itunes", "amzn",
         "nf", "dsnp", "hmax", "atvp", "bbc", "itv",
     ]
-    private static let languageSuffixes = ["en", "eng", "english", "sv", "swe", "forced", "sdh", "hi", "cc"]
+    /// Språkkoder och andra markeringar som kan stå sist i filnamnet.
+    private static let languageSuffixes: [String] =
+        ["forced", "sdh", "hi", "cc"] + Language.all.flatMap { [$0.code] + $0.aliases }
 
     static func guess(fromFileName fileName: String) -> TitleGuess {
         var base = (fileName as NSString).deletingPathExtension

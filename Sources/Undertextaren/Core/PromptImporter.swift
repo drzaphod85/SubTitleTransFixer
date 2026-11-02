@@ -21,6 +21,8 @@ struct ImportCandidate: Identifiable {
     var source: Source
     var title: String
     var kind: MediaKind = .series
+    /// Språket prompten gäller översättning till.
+    var targetLanguage: String = "sv"
     /// nil = skapa ny prompt, annars uppdatera den här.
     var targetID: UUID?
     /// Låt Claude dela upp texten i stilguide, karaktärer och ordlista.
@@ -48,7 +50,7 @@ enum PromptImporter {
 
     /// Läser filer och gör importkandidater av dem.
     @MainActor
-    static func candidates(from urls: [URL], library: PromptLibrary) -> (items: [ImportCandidate], errors: [String]) {
+    static func candidates(from urls: [URL], library: PromptLibrary, defaultTarget: String) -> (items: [ImportCandidate], errors: [String]) {
         var items: [ImportCandidate] = []
         var errors: [String] = []
 
@@ -60,8 +62,10 @@ enum PromptImporter {
                     let profiles = try decodeProfiles(Data(text.utf8))
                     guard !profiles.isEmpty else { throw CocoaError(.fileReadCorruptFile) }
                     for p in profiles {
-                        var c = ImportCandidate(fileName: name, source: .profile(p), title: p.title, kind: p.kind)
-                        c.targetID = library.profile(id: p.id)?.id ?? library.bestMatch(for: p.title, threshold: 0.95)?.profile.id
+                        var c = ImportCandidate(fileName: name, source: .profile(p), title: p.title, kind: p.kind,
+                                                targetLanguage: p.targetLanguage)
+                        c.targetID = library.profile(id: p.id)?.id
+                            ?? library.bestMatch(for: p.title, targetLanguage: p.targetLanguage, threshold: 0.95)?.profile.id
                         items.append(c)
                     }
                 } else {
@@ -71,8 +75,9 @@ enum PromptImporter {
                         continue
                     }
                     let title = titleGuess(fileName: name, text: trimmed)
-                    var c = ImportCandidate(fileName: name, source: .text(trimmed), title: title)
-                    c.targetID = library.bestMatch(for: title)?.profile.id
+                    let lang = defaultTarget
+                    var c = ImportCandidate(fileName: name, source: .text(trimmed), title: title, targetLanguage: lang)
+                    c.targetID = library.bestMatch(for: title, targetLanguage: lang)?.profile.id
                     items.append(c)
                 }
             } catch {

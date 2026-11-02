@@ -69,9 +69,10 @@ final class PromptLibrary {
     }
 
     /// Hittar den sparade profil som bäst matchar en titel (t.ex. gissad ur filnamnet).
-    func bestMatch(for title: String, threshold: Double = 0.82) -> (profile: SeriesProfile, score: Double)? {
+    /// - Parameter targetLanguage: om angivet räknas bara prompter för det målspråket.
+    func bestMatch(for title: String, targetLanguage: String? = nil, threshold: Double = 0.82) -> (profile: SeriesProfile, score: Double)? {
         var best: (SeriesProfile, Double)?
-        for p in profiles {
+        for p in profiles where targetLanguage == nil || p.targetLanguage == targetLanguage {
             let names = [p.title] + p.aliases
             let s = names.map { TitleMatcher.score(title, against: $0) }.max() ?? 0
             if s > (best?.1 ?? 0) { best = (p, s) }

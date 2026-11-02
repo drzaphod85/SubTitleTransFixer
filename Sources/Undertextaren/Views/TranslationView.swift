@@ -27,6 +27,8 @@ struct TranslationView: View {
             if session.hasFile {
                 header
                 Divider()
+                LanguageBar()
+                Divider()
                 columnHeader
                 Divider()
                 cueList
@@ -51,7 +53,8 @@ struct TranslationView: View {
             SuggestionsSheet()
         }
         .sheet(isPresented: $showGenerate) {
-            GenerateProfileSheet(existingID: nil, prefillTitle: session.titleGuess?.title) { newID in
+            GenerateProfileSheet(existingID: nil, prefillTitle: session.titleGuess?.title,
+                                 reference: session.otherLanguageMatch) { newID in
                 session.profileID = newID
                 session.profileAutoMatched = false
             }
@@ -94,7 +97,7 @@ struct TranslationView: View {
     private var toolbar: some ToolbarContent {
         ToolbarItemGroup {
             Button { session.openPanel() } label: { Label("Öppna", systemImage: "folder") }
-                .help("Öppna en engelsk .srt-fil (⌘O)")
+                .help("Öppna en .srt-fil (⌘O)")
             if session.isRunning {
                 Button { session.stop() } label: { Label("Stoppa", systemImage: "stop.fill") }
             } else {
@@ -103,11 +106,11 @@ struct TranslationView: View {
                           systemImage: "play.fill")
                 }
                 .disabled(!session.hasFile)
-                .help("Översätt till svenska (⌘R)")
+                .help("Översätt till \(session.targetLanguage.name) (⌘R)")
             }
             Button { session.savePanel() } label: { Label("Spara", systemImage: "square.and.arrow.down") }
                 .disabled(session.translatedCount == 0)
-                .help("Spara svensk .srt (⌘S)")
+                .help("Spara översatt .srt (⌘S)")
             Button { showInspector.toggle() } label: { Label("Sidopanel", systemImage: "sidebar.right") }
         }
     }
@@ -159,6 +162,19 @@ struct TranslationView: View {
                 Button("Visa") { model.selection = .profile(p.id) }
                     .buttonStyle(.link)
             }
+        } else if let other = session.otherLanguageMatch {
+            HStack(spacing: 6) {
+                Image(systemName: "globe").foregroundStyle(.orange)
+                Text("Prompten för ”\(other.title)” gäller \(Language.find(other.targetLanguage)?.name ?? other.targetLanguage)")
+                    .font(.callout)
+                Button("Använd ändå") {
+                    session.profileID = other.id
+                    session.profileAutoMatched = false
+                }
+                .buttonStyle(.link)
+                Button("Skapa för \(session.targetLanguage.name)…") { showGenerate = true }
+                    .buttonStyle(.link)
+            }
         } else {
             HStack(spacing: 6) {
                 Image(systemName: "sparkles").foregroundStyle(.orange)
@@ -190,8 +206,8 @@ struct TranslationView: View {
             }
             HStack(spacing: 12) {
                 Text("#").frame(width: 92, alignment: .leading)
-                Text("ORIGINAL (ENGELSKA)").frame(maxWidth: .infinity, alignment: .leading)
-                Text("ÖVERSÄTTNING (SVENSKA)").frame(maxWidth: .infinity, alignment: .leading)
+                Text("ORIGINAL (\(session.sourceLanguage.name.uppercased()))").frame(maxWidth: .infinity, alignment: .leading)
+                Text("ÖVERSÄTTNING (\(session.targetLanguage.name.uppercased()))").frame(maxWidth: .infinity, alignment: .leading)
                 Text("CPS").frame(width: 64, alignment: .trailing)
             }
             .font(.caption2.weight(.semibold))
@@ -259,7 +275,7 @@ struct TranslationView: View {
         ContentUnavailableView {
             Label("Släpp en .srt-fil här", systemImage: "captions.bubble")
         } description: {
-            Text("Undertextaren översätter engelska undertexter till svenska med Claude.\nPrompten för serien eller filmen hittas automatiskt om den finns sparad.")
+            Text("Undertextaren översätter undertexter mellan språk med Claude. Originalets språk känns igen automatiskt.\nPrompten för serien eller filmen hittas automatiskt om den finns sparad.")
         } actions: {
             Button("Öppna undertext…") { session.openPanel() }
                 .buttonStyle(.borderedProminent)

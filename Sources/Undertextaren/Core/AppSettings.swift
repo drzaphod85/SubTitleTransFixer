@@ -21,6 +21,9 @@ final class AppSettings {
     @ObservationIgnored private let defaults = UserDefaults.standard
 
     var model: String { didSet { defaults.set(model, forKey: "model") } }
+    /// "auto" eller en språkkod (ISO 639-1)
+    var sourceLanguage: String { didSet { defaults.set(sourceLanguage, forKey: "sourceLanguage") } }
+    var targetLanguage: String { didSet { defaults.set(targetLanguage, forKey: "targetLanguage") } }
     var effort: String { didSet { defaults.set(effort, forKey: "effort") } }
     var batchSize: Int { didSet { defaults.set(batchSize, forKey: "batchSize") } }
     var contextSize: Int { didSet { defaults.set(contextSize, forKey: "contextSize") } }
@@ -58,6 +61,8 @@ final class AppSettings {
 
     init() {
         model = defaults.string(forKey: "model") ?? "claude-opus-5-5"
+        sourceLanguage = defaults.string(forKey: "sourceLanguage") ?? Language.auto
+        targetLanguage = defaults.string(forKey: "targetLanguage") ?? "sv"
         effort = defaults.string(forKey: "effort") ?? "medium"
         batchSize = defaults.object(forKey: "batchSize") as? Int ?? 20
         contextSize = defaults.object(forKey: "contextSize") as? Int ?? 4
@@ -67,11 +72,19 @@ final class AppSettings {
         useFallbacks = defaults.object(forKey: "useFallbacks") as? Bool ?? true
         webSearchForProfiles = defaults.object(forKey: "webSearchForProfiles") as? Bool ?? true
         suggestProfileUpdates = defaults.object(forKey: "suggestProfileUpdates") as? Bool ?? true
-        baseStyle = defaults.string(forKey: "baseStyle") ?? PromptBuilder.defaultStyle
+        // Byt automatiskt ut den gamla svenska grundstilen om den inte har ändrats.
+        let storedStyle = defaults.string(forKey: "baseStyle")
+        if storedStyle == nil || storedStyle == PromptBuilder.legacyDefaultStyle {
+            baseStyle = PromptBuilder.defaultStyle
+        } else {
+            baseStyle = storedStyle!
+        }
         apiKey = Keychain.read()
             ?? ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"]
             ?? ""
     }
+
+    var target: Language { Language.find(targetLanguage) ?? .swedish }
 
     var hasAPIKey: Bool { !apiKey.trimmingCharacters(in: .whitespaces).isEmpty }
 

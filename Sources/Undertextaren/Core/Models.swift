@@ -97,6 +97,8 @@ struct SeriesProfile: Identifiable, Codable, Hashable {
     /// Andra namn som filer kan heta, t.ex. "ACGAS", "All Creatures".
     var aliases: [String] = []
     var kind: MediaKind = .series
+    /// Språket prompten är skriven för att översätta TILL (ISO 639-1).
+    var targetLanguage: String = "sv"
     var year: String = ""
     var synopsis: String = ""
     /// Verksspecifik stilguide – läggs ovanpå grundstilen.
@@ -108,9 +110,10 @@ struct SeriesProfile: Identifiable, Codable, Hashable {
     var createdAt = Date()
     var updatedAt = Date()
 
-    init(title: String, kind: MediaKind = .series) {
+    init(title: String, kind: MediaKind = .series, targetLanguage: String = "sv") {
         self.title = title
         self.kind = kind
+        self.targetLanguage = targetLanguage
     }
 
     // Tolerant avkodning så att äldre sparade filer fortsätter fungera
@@ -121,6 +124,7 @@ struct SeriesProfile: Identifiable, Codable, Hashable {
         title = try c.decodeIfPresent(String.self, forKey: .title) ?? "Namnlös"
         aliases = try c.decodeIfPresent([String].self, forKey: .aliases) ?? []
         kind = try c.decodeIfPresent(MediaKind.self, forKey: .kind) ?? .series
+        targetLanguage = try c.decodeIfPresent(String.self, forKey: .targetLanguage) ?? "sv"
         year = try c.decodeIfPresent(String.self, forKey: .year) ?? ""
         synopsis = try c.decodeIfPresent(String.self, forKey: .synopsis) ?? ""
         styleGuide = try c.decodeIfPresent(String.self, forKey: .styleGuide) ?? ""
@@ -134,6 +138,7 @@ struct SeriesProfile: Identifiable, Codable, Hashable {
 
     var subtitle: String {
         var parts = [kind.label]
+        if let lang = Language.find(targetLanguage) { parts.append("→ \(lang.displayName)") }
         if !year.isEmpty { parts.append(year) }
         if !translatedEpisodes.isEmpty { parts.append("\(translatedEpisodes.count) avsnitt") }
         return parts.joined(separator: " · ")

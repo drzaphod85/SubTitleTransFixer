@@ -13,10 +13,16 @@ final class TranslationSession {
     var cues: [Cue] = []
     var titleGuess: TitleGuess?
 
+    // Språk
+    /// Resultatet av språkigenkänningen för den inlästa filen.
+    var detection: LanguageDetection?
+
     // Profil
     var profileID: UUID?
     /// true om profilen hittades automatiskt ur filnamnet
     var profileAutoMatched = false
+    /// Prompt för samma verk men ett annat målspråk (om ingen för rätt språk finns).
+    var otherLanguageMatch: SeriesProfile?
 
     // Körning
     var isRunning = false
@@ -49,13 +55,25 @@ final class TranslationSession {
     var openQuestions: [TranslatorQuestion] { questions.filter { !$0.isResolved } }
     var hasFile: Bool { !cues.isEmpty }
 
+    /// Språket som översätts från: valt i inställningarna, eller upptäckt.
+    var sourceLanguage: Language {
+        Language.find(settings.sourceLanguage) ?? detection?.language ?? .english
+    }
+    var targetLanguage: Language { settings.target }
+    var isAutoSource: Bool { settings.sourceLanguage == Language.auto }
+
+    /// Varning om filen redan verkar vara på målspråket.
+    var sameLanguageWarning: Bool {
+        hasFile && sourceLanguage == targetLanguage
+    }
+
     // MARK: - Fil
 
     func openPanel() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "srt") ?? .plainText]
         panel.allowsMultipleSelection = false
-        panel.message = "Välj en engelsk undertextfil"
+        panel.message = "Välj en undertextfil att översätta"
         if panel.runModal() == .OK, let url = panel.url { load(url: url) }
     }
 
@@ -78,17 +96,36 @@ final class TranslationSession {
 
             let guess = TitleMatcher.guess(fromFileName: url.lastPathComponent)
             titleGuess = guess
-            if let match = library.bestMatch(for: guess.title) {
-                profileID = match.profile.id
-                profileAutoMatched = true
-                statusText = "Läste \(cues.count) repliker. Hittade sparad prompt för ”\(match.profile.title)”."
+            detection = LanguageDetector.detect(texts: parsed.map(\.original), fileName: url.lastPathComponent)
+            profileID = nil
+            matchProfile()
+
+            var status = "Läste \(cues.count) repliker"
+            if let detection { status += " på \(detection.language.name)" }
+            if let p = profile {
+                status += ". Hittade sparad prompt för ”\(p.title)”."
             } else {
-                profileID = nil
-                profileAutoMatched = false
-                statusText = "Läste \(cues.count) repliker. Ingen sparad prompt för ”\(guess.title)”."
+                status += ". Ingen sparad prompt för ”\(guess.title)” (till \(targetLanguage.name))."
             }
+            statusText = status
         } catch {
             errorMessage = "Kunde inte läsa filen: \(error.localizedDescription)"
+        }
+    }
+
+    /// Letar upp en sparad prompt för verket och det valda målspråket.
+    /// Körs vid inläsning och när målspråket byts (om prompten valdes automatiskt).
+    func matchProfile() {
+        guard let guess = titleGuess else { return }
+        guard profileID == nil || profileAutoMatched else { return }
+        otherLanguageMatch = nil
+        if let match = library.bestMatch(for: guess.title, targetLanguage: targetLanguage.code) {
+            profileID = match.profile.id
+            profileAutoMatched = true
+        } else {
+            profileID = nil
+            profileAutoMatched = false
+            otherLanguageMatch = library.bestMatch(for: guess.title)?.profile
         }
     }
 
@@ -96,7 +133,8 @@ final class TranslationSession {
         guard hasFile else { return }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "srt") ?? .plainText]
-        panel.nameFieldStringValue = SRT.outputName(for: fileURL?.lastPathComponent ?? "undertext.srt")
+        panel.nameFieldStringValue = SRT.outputName(for: fileURL?.lastPathComponent ?? "undertext.srt",
+                                                    source: sourceLanguage, target: targetLanguage)
         panel.directoryURL = fileURL?.deletingLastPathComponent()
         if panel.runModal() == .OK, let url = panel.url {
             do {
@@ -311,7 +349,10 @@ final class TranslationSession {
     }
 
     private func requestBatch(_ indices: [Int], client: AnthropicClient, allowQuestions: Bool) async throws -> BatchResult {
-        let system = PromptBuilder.systemPrompt(profile: profile, clarifications: clarifications, settings: settings)
+        let source = sourceLanguage, target = targetLanguage
+        let system = PromptBuilder.systemPrompt(profile: profile, clarifications: clarifications, settings: settings,
+                                                source: source, target: target)
+        let srcTag = source.code.uppercased(), dstTag = target.code.uppercased()
 
         // Glidande kontextfönster: tidigare översatta repliker
         let first = indices.first ?? 0
@@ -320,7 +361,7 @@ final class TranslationSession {
         if !context.isEmpty {
             user += "TIDIGARE REPLIKER (för sammanhang, översätt INTE om dessa):\n"
             user += context.map {
-                "EN: \($0.original.replacingOccurrences(of: "\n", with: " "))\nSV: \($0.translation.replacingOccurrences(of: "\n", with: " "))"
+                "\(srcTag): \($0.original.replacingOccurrences(of: "\n", with: " "))\n\(dstTag): \($0.translation.replacingOccurrences(of: "\n", with: " "))"
             }.joined(separator: "\n")
             user += "\n\n"
         }
@@ -337,7 +378,8 @@ final class TranslationSession {
         let itemsJSON = (try? JSONSerialization.data(withJSONObject: items, options: [.prettyPrinted, .withoutEscapingSlashes]))
             .flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
 
-        user += "Översätt fältet \"text\" i varje objekt till svenska enligt stil och regler.\n"
+        user += "Översätt fältet \"text\" i varje objekt från \(source.name) till \(target.name) enligt stil och regler.\n"
+        user += "Skriv frågor och profile_updates-beskrivningar på svenska (användarens språk).\n"
         user += "Behåll radbrytningar (\\n) där det passar. Sikta på att hålla dig under\n"
         user += "max_chars per replik. Svara enligt SVARSFORMAT.\n"
         user += allowQuestions
@@ -353,7 +395,8 @@ final class TranslationSession {
         let obj = parsed as? [String: Any]
         let translations = (obj?["translations"] as? [[String: Any]]) ?? (parsed as? [[String: Any]]) ?? []
         for t in translations {
-            if let id = JSONExtract.int(t["id"]), let sv = t["sv"] as? String { result.translations[id] = sv }
+            let text = (t["translation"] as? String) ?? (t["text"] as? String) ?? (t["sv"] as? String)
+            if let id = JSONExtract.int(t["id"]), let text { result.translations[id] = text }
         }
 
         let validSeqs = Set(indices.map { cues[$0].seq })
@@ -431,7 +474,7 @@ final class TranslationSession {
         if let id = profileID {
             library.apply(accepted, to: id)
         } else {
-            let p = SeriesProfile(title: titleGuess?.title ?? "Ny profil")
+            let p = SeriesProfile(title: titleGuess?.title ?? "Ny profil", targetLanguage: targetLanguage.code)
             library.upsert(p)
             library.apply(accepted, to: p.id)
             profileID = p.id
@@ -439,7 +482,7 @@ final class TranslationSession {
         suggestions = []
     }
 
-    /// Ett urval engelska repliker – underlag när Claude skapar en profil.
+    /// Ett urval repliker ur originalet – underlag när Claude skapar en profil.
     func sampleLines(limit: Int = 150) -> [String] {
         guard !cues.isEmpty else { return [] }
         let step = max(cues.count / limit, 1)

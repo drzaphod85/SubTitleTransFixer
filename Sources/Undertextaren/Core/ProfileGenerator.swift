@@ -7,38 +7,46 @@ enum ProfileGenerator {
         var kind: MediaKind
         var year: String
         var extraInfo: String
-        /// Ett urval engelska repliker ur den inlästa filen (för att förankra tonen).
+        /// Ett urval repliker ur den inlästa filen (för att förankra tonen).
         var sampleLines: [String]
         var webSearch: Bool
         /// Befintlig profil som ska förbättras/kompletteras (nil = skapa ny).
         var existing: SeriesProfile?
+        /// Språket undertexterna är på.
+        var source: Language = .english
+        /// Språket profilen gäller översättning till.
+        var target: Language = .swedish
+        /// Profil för samma verk men ett annat målspråk – används som faktaunderlag.
+        var reference: SeriesProfile? = nil
     }
 
-    static let system = """
-    Du är en mycket erfaren svensk undertextöversättare och redaktör, med bred
+    /// {SOURCE} och {TARGET} ersätts med språknamn.
+    static let systemTemplate = """
+    Du är en mycket erfaren undertextöversättare och redaktör, med bred
     kunskap om film och TV. Din uppgift är att skriva en VERKSPROFIL som en annan
     översättare (en AI) får som instruktion när den översätter undertexter till
-    ett specifikt verk från engelska till svenska. Profilen läggs ovanpå en
+    ett specifikt verk från {SOURCE} till {TARGET}. Profilen läggs ovanpå en
     generell stilguide för undertextning, så upprepa inte allmänna regler om
     radlängd, CPS eller markup – fokusera på det som är speciellt för just detta verk.
 
     En bra profil innehåller:
     - synopsis: 2–4 meningar om miljö, tidsperiod, genre och ton.
-    - style_guide: konkreta, verksspecifika instruktioner på svenska, t.ex.
+    - style_guide: konkreta, verksspecifika instruktioner (skrivna på svenska,
+      användarens språk, men med exempel på {TARGET}), t.ex.
       tidsenlig ton (undvik anakronistiska ord), när du/ni ska användas och mellan
-      vilka, hur dialekter och sociala skillnader återges (naturlig svenska –
+      vilka, hur dialekter och sociala skillnader återges (naturlig {TARGET} –
       ingen påhittad dialekt), facktermer i verkets värld (t.ex. veterinärmedicin,
       militär, sci-fi-teknik), återkommande uttryck, kraftuttryck och humor.
     - characters: huvudpersoner och viktiga bifigurer med kort beskrivning och hur
       de talar/tilltalar varandra (titlar, förnamn, smeknamn).
     - glossary: återkommande namn, platser, titlar och begrepp med rekommenderad
-      svensk översättning (eller "behålls" om de ska stå kvar på engelska).
+      översättning till {TARGET} (eller "behålls" om de ska stå kvar som i originalet).
     - notes: övrigt som är bra att veta, inklusive sådant du är osäker på.
 
     Var saklig. Om du inte känner till verket säkert, säg det i notes och bygg
     profilen på det du kan se i replikerna i stället för att hitta på.
     Om du har tillgång till webbsökning, använd den för att kontrollera
-    rollista, miljö och etablerade svenska namn.
+    rollista, miljö och etablerade namn på {TARGET}.
 
     Svara till sist ENBART med ett JSON-objekt på formen:
     {"title": "...", "aliases": ["..."], "kind": "series" | "film", "year": "...",
@@ -58,24 +66,35 @@ enum ProfileGenerator {
         } else {
             user += "Skapa en ny verksprofil.\n\n"
         }
-        user += "Titel: \(r.title)\nTyp: \(r.kind.label)\n"
+        if let ref = r.reference {
+            let refLang = Language.find(ref.targetLanguage)?.name ?? ref.targetLanguage
+            user += "Det finns redan en profil för verket för översättning till \(refLang). Använd fakta om "
+            user += "verket, miljön och karaktärerna därifrån, men skriv om tilltalsregler, stil och ordlista "
+            user += "för \(r.target.name).\n\nPROFIL FÖR \(refLang.uppercased()) (JSON):\n" + encode(ref) + "\n\n"
+        }
+        user += "Titel: \(r.title)\nTyp: \(r.kind.label)\nFrån: \(r.source.name)\nTill: \(r.target.name)\n"
         if !r.year.isEmpty { user += "År: \(r.year)\n" }
         if !r.extraInfo.isEmpty { user += "\nAnvändarens egna önskemål och information:\n\(r.extraInfo)\n" }
         if !r.sampleLines.isEmpty {
-            user += "\nUTDRAG UR DE ENGELSKA UNDERTEXTERNA (för ton och namn):\n"
+            user += "\nUTDRAG UR UNDERTEXTERNA PÅ \(r.source.name.uppercased()) (för ton och namn):\n"
             user += r.sampleLines.joined(separator: "\n")
             user += "\n"
         }
 
+        let system = systemTemplate
+            .replacingOccurrences(of: "{SOURCE}", with: r.source.name)
+            .replacingOccurrences(of: "{TARGET}", with: r.target.name)
         let raw = try await client.complete(system: system, user: user, maxTokens: 16000, webSearch: r.webSearch)
         guard let obj = try JSONExtract.value(from: raw) as? [String: Any] else {
             throw AnthropicClient.APIError(message: "Claude returnerade ingen profil.")
         }
-        return profile(from: obj, base: r.existing, fallbackTitle: r.title, fallbackKind: r.kind)
+        var p = profile(from: obj, base: r.existing, fallbackTitle: r.title, fallbackKind: r.kind)
+        if r.existing == nil { p.targetLanguage = r.target.code }
+        return p
     }
 
     static let structureSystem = """
-    Du är en erfaren svensk undertextredaktör. Användaren har en befintlig
+    Du är en erfaren undertextredaktör. Användaren har en befintlig
     översättningsprompt (stilguide) för ett visst verk, skriven för hand. Din
     uppgift är att föra över den till en strukturerad VERKSPROFIL utan att något
     går förlorat.
@@ -84,7 +103,7 @@ enum ProfileGenerator {
     - Tappa INGENTING. Varje instruktion, regel, exempel och namn i originalet ska
       finnas kvar någonstans i profilen.
     - Karaktärsbeskrivningar (vem någon är, hur hen talar, tilltal) → characters.
-    - Namn, platser, titlar och termer med en angiven svensk översättning (eller
+    - Namn, platser, titlar och termer med en angiven översättning (eller
       "behålls") → glossary.
     - Allt övrigt (ton, tidsperiod, du/ni-regler, dialekt, kraftuttryck, exempel,
       tekniska regler) → style_guide, så ordagrant som möjligt. Behåll
@@ -102,9 +121,10 @@ enum ProfileGenerator {
     """
 
     /// Gör om en befintlig, handskriven prompt till en strukturerad profil.
-    static func structure(text: String, title: String, kind: MediaKind,
+    static func structure(text: String, title: String, kind: MediaKind, target: Language,
                           into existing: SeriesProfile?, client: AnthropicClient) async throws -> SeriesProfile {
-        var user = "Titel: \(title)\nTyp: \(kind.label)\n\nBEFINTLIG PROMPT:\n<<<\n\(text)\n>>>\n"
+        var user = "Titel: \(title)\nTyp: \(kind.label)\nPrompten gäller översättning till: \(target.name)\n"
+        user += "\nBEFINTLIG PROMPT:\n<<<\n\(text)\n>>>\n"
         if existing != nil {
             user += "\nPrompten ska ersätta stilguiden i en befintlig profil. Befintliga karaktärer "
             user += "och termer finns redan; ta bara med dem i svaret om originalet säger något nytt om dem.\n"
@@ -119,6 +139,7 @@ enum ProfileGenerator {
         var p = profile(from: obj, base: base, fallbackTitle: title, fallbackKind: kind)
         if p.styleGuide.isEmpty { p.styleGuide = text } // säkerhetsnät
         if existing == nil { p.title = title; p.kind = kind }
+        p.targetLanguage = target.code
         return p
     }
 
@@ -185,6 +206,7 @@ enum ProfileGenerator {
     private static func encode(_ p: SeriesProfile) -> String {
         let dict: [String: Any] = [
             "title": p.title, "aliases": p.aliases, "kind": p.kind.rawValue, "year": p.year,
+            "target_language": p.targetLanguage,
             "synopsis": p.synopsis, "style_guide": p.styleGuide,
             "characters": p.characters.map { ["name": $0.name, "description": $0.description, "speech": $0.speech] },
             "glossary": p.glossary.map { ["source": $0.source, "target": $0.target, "note": $0.note] },

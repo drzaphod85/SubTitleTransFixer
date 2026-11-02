@@ -34,7 +34,7 @@ final class AppModel {
     }
 
     func importFiles(_ urls: [URL], append: Bool = false) {
-        let result = PromptImporter.candidates(from: urls, library: library)
+        let result = PromptImporter.candidates(from: urls, library: library, defaultTarget: settings.targetLanguage)
         if append {
             importCandidates += result.items
             importErrors += result.errors
@@ -75,7 +75,7 @@ struct UndertextarenApp: App {
             CommandGroup(replacing: .newItem) {
                 Button("Öppna undertext…") { model.session.openPanel() }
                     .keyboardShortcut("o")
-                Button("Spara svensk undertext…") { model.session.savePanel() }
+                Button("Spara översättning…") { model.session.savePanel() }
                     .keyboardShortcut("s")
                     .disabled(!model.session.hasFile)
             }

@@ -24,6 +24,10 @@ struct ProfileEditorView: View {
                     Picker("Typ", selection: p.kind) {
                         ForEach(MediaKind.allCases) { k in Text(k.label).tag(k) }
                     }
+                    Picker("Översätter till", selection: p.targetLanguage) {
+                        ForEach(Language.all) { lang in Text(lang.menuName).tag(lang.code) }
+                    }
+                    .help("Prompten hittas automatiskt bara när du översätter till det här språket")
                     TextField("År", text: p.year)
                 } header: {
                     Text("Verk")
@@ -68,9 +72,9 @@ struct ProfileEditorView: View {
                 Section {
                     ForEach(p.glossary) { $g in
                         HStack(alignment: .top) {
-                            TextField("Engelska", text: $g.source).frame(width: 170)
+                            TextField("Original", text: $g.source).frame(width: 170)
                             Image(systemName: "arrow.right").foregroundStyle(.secondary)
-                            TextField("Svenska", text: $g.target).frame(width: 170)
+                            TextField("Översättning", text: $g.target).frame(width: 170)
                             TextField("Anteckning", text: $g.note, axis: .vertical)
                             Button(role: .destructive) {
                                 p.wrappedValue.glossary.removeAll { $0.id == g.id }
@@ -113,7 +117,9 @@ struct ProfileEditorView: View {
 
                 Section {
                     DisclosureGroup("Förhandsvisa hela prompten", isExpanded: $showPreview) {
-                        Text(PromptBuilder.systemPrompt(profile: p.wrappedValue, clarifications: [], settings: model.settings))
+                        Text(PromptBuilder.systemPrompt(profile: p.wrappedValue, clarifications: [], settings: model.settings,
+                                                        source: model.session.sourceLanguage,
+                                                        target: Language.find(p.wrappedValue.targetLanguage) ?? .swedish))
                             .font(.system(.caption, design: .monospaced))
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -158,11 +164,15 @@ struct GenerateProfileSheet: View {
 
     let existingID: UUID?
     var prefillTitle: String? = nil
+    /// Prompt för samma verk men ett annat målspråk – Claude använder den som underlag.
+    var reference: SeriesProfile? = nil
     var onCreated: ((UUID) -> Void)? = nil
 
     @State private var title = ""
     @State private var kind: MediaKind = .series
     @State private var year = ""
+    @State private var sourceCode = "en"
+    @State private var targetCode = "sv"
     @State private var extraInfo = ""
     @State private var includeSample = true
     @State private var webSearch = true
@@ -192,6 +202,19 @@ struct GenerateProfileSheet: View {
                 }
                 .disabled(existing != nil)
                 TextField("År (valfritt)", text: $year, prompt: Text("t.ex. 2020"))
+                Picker("Undertexternas språk", selection: $sourceCode) {
+                    ForEach(Language.all) { lang in Text(lang.menuName).tag(lang.code) }
+                }
+                Picker("Översätt till", selection: $targetCode) {
+                    ForEach(Language.all) { lang in Text(lang.menuName).tag(lang.code) }
+                }
+                .disabled(existing != nil)
+                if let reference {
+                    Label("Använder prompten för ”\(reference.title)” (\(Language.find(reference.targetLanguage)?.name ?? reference.targetLanguage)) som underlag",
+                          systemImage: "doc.on.doc")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
                 VStack(alignment: .leading) {
                     Text("Egna önskemål eller information (valfritt)")
                     TextEditor(text: $extraInfo)
@@ -201,7 +224,7 @@ struct GenerateProfileSheet: View {
                 }
                 Toggle("Använd repliker ur den inlästa filen som underlag", isOn: $includeSample)
                     .disabled(!model.session.hasFile)
-                Toggle("Låt Claude söka på webben (rollista, miljö, svenska namn)", isOn: $webSearch)
+                Toggle("Låt Claude söka på webben (rollista, miljö, etablerade namn)", isOn: $webSearch)
                     .disabled(!AnthropicClient.supportsWebSearch(model.settings.model))
             }
             .formStyle(.grouped)
@@ -228,12 +251,16 @@ struct GenerateProfileSheet: View {
         .padding(24)
         .frame(width: 620)
         .onAppear {
+            sourceCode = model.session.sourceLanguage.code
+            targetCode = model.session.targetLanguage.code
             if let existing {
                 title = existing.title
                 kind = existing.kind
                 year = existing.year
+                targetCode = existing.targetLanguage
             } else if let prefillTitle {
                 title = prefillTitle
+                if let reference { kind = reference.kind; year = reference.year }
             }
             includeSample = model.session.hasFile
             webSearch = model.settings.webSearchForProfiles
@@ -253,7 +280,10 @@ struct GenerateProfileSheet: View {
                 extraInfo: extraInfo,
                 sampleLines: includeSample ? model.session.sampleLines() : [],
                 webSearch: webSearch,
-                existing: existing
+                existing: existing,
+                source: Language.find(sourceCode) ?? .english,
+                target: Language.find(targetCode) ?? .swedish,
+                reference: existing == nil ? reference : nil
             )
             let profile = try await ProfileGenerator.generate(request, client: client)
             model.library.upsert(profile)
