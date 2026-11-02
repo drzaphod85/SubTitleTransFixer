@@ -57,6 +57,8 @@ enum IssueCategory: String, CaseIterable, Identifiable {
     case timing, numbering, length, readingSpeed, formatting, punctuation, consistency
     // Språkliga (Claude)
     case spelling, grammar, wording, meaning
+    // Jämförelse med originalet
+    case accuracy
 
     var id: String { rawValue }
 
@@ -73,6 +75,7 @@ enum IssueCategory: String, CaseIterable, Identifiable {
         case .grammar: return "Grammatik"
         case .wording: return "Ordval"
         case .meaning: return "Betydelse"
+        case .accuracy: return "Mot originalet"
         }
     }
 
@@ -89,6 +92,7 @@ enum IssueCategory: String, CaseIterable, Identifiable {
         case .grammar: return "text.book.closed"
         case .wording: return "quote.bubble"
         case .meaning: return "questionmark.bubble"
+        case .accuracy: return "arrow.left.arrow.right"
         }
     }
 
@@ -101,6 +105,7 @@ enum IssueCategory: String, CaseIterable, Identifiable {
         case "consistency", "konsekvens": return .consistency
         case "meaning", "betydelse", "unclear": return .meaning
         case "formatting", "formatering": return .formatting
+        case "accuracy", "mistranslation", "omission", "addition", "names", "numbers", "översättning": return .accuracy
         default: return .wording
         }
     }

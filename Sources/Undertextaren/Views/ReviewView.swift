@@ -67,10 +67,12 @@ struct ReviewView: View {
                 Button { review.stop() } label: { Label("Stoppa", systemImage: "stop.fill") }
             } else {
                 Button { review.startClaudeReview() } label: {
-                    Label("Granska språket", systemImage: "text.magnifyingglass")
+                    Label(review.hasSource ? "Granska och jämför" : "Granska språket", systemImage: "text.magnifyingglass")
                 }
                 .disabled(!review.hasFile)
-                .help("Låt Claude granska stavning, grammatik, interpunktion och ordval")
+                .help(review.hasSource
+                      ? "Låt Claude granska språket och jämföra översättningen med originalet"
+                      : "Låt Claude granska stavning, grammatik, interpunktion och ordval")
             }
             Menu {
                 Button("Alla tekniska rättningar (\(review.autoFixableLocalCount))") {
@@ -119,6 +121,10 @@ struct ReviewView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 200)
                 Spacer()
+                if review.hasSource {
+                    Toggle("Visa original", isOn: Binding(get: { review.showSource }, set: { review.showSource = $0 }))
+                        .toggleStyle(.checkbox)
+                }
                 Toggle("Visa alla repliker", isOn: $showAllCues)
                     .toggleStyle(.checkbox)
             }
@@ -209,8 +215,17 @@ private struct ReviewHeader: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            mainRow
+            SourceRow()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private var mainRow: some View {
         let review = model.review
-        HStack(spacing: 14) {
+        return HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(review.fileName).font(.title3.weight(.semibold)).lineLimit(1)
                 Text("\(review.cues.count) repliker").font(.caption).foregroundStyle(.secondary)
@@ -241,8 +256,39 @@ private struct ReviewHeader: View {
             .frame(width: 220)
             .help("Namn och termer i promptens ordlista används när Claude granskar konsekvens")
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+    }
+}
+
+/// Originalfilen som översättningen jämförs med.
+private struct SourceRow: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let review = model.review
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.left.arrow.right")
+                .foregroundStyle(review.hasSource ? Color.accentColor : Color.secondary)
+            if let name = review.sourceFileName {
+                Text("Jämför med originalet:").foregroundStyle(.secondary)
+                Text(name).fontWeight(.medium).lineLimit(1).truncationMode(.middle)
+                if let lang = review.sourceLanguage {
+                    Text("(\(lang.name))").foregroundStyle(.secondary)
+                }
+                Text("· \(review.sourceTexts.count) av \(review.cues.count) repliker kopplade")
+                    .foregroundStyle(.secondary)
+                if !review.missingSource.isEmpty {
+                    Text("· \(review.missingSource.count) saknas i översättningen")
+                        .foregroundStyle(.orange)
+                }
+                Button("Byt…") { review.chooseSourcePanel() }.buttonStyle(.link)
+                Button("Ta bort") { review.clearSource() }.buttonStyle(.link)
+            } else {
+                Text("Ingen originalfil – bara språket granskas.").foregroundStyle(.secondary)
+                Button("Jämför med originalfil…") { review.chooseSourcePanel() }.buttonStyle(.link)
+            }
+            Spacer()
+        }
+        .font(.callout)
     }
 }
 
@@ -285,12 +331,17 @@ private struct ReviewCueRow: View {
                 }
                 .frame(width: 92, alignment: .leading)
 
-                TextField("", text: Binding(
-                    get: { review.cues[index].text },
-                    set: { review.updateText(seq: cue.seq, text: $0) }
-                ), axis: .vertical)
-                .textFieldStyle(.plain)
-                .lineLimit(1...5)
+                VStack(alignment: .leading, spacing: 4) {
+                    if review.hasSource && review.showSource {
+                        SourceText(text: review.sourceTexts[cue.seq], language: review.sourceLanguage)
+                    }
+                    TextField("", text: Binding(
+                        get: { review.cues[index].text },
+                        set: { review.updateText(seq: cue.seq, text: $0) }
+                    ), axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .lineLimit(1...5)
+                }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 if cue.isChanged {
@@ -368,6 +419,32 @@ private struct IssueRow: View {
             Text("Ny tidkod: \(tc)").font(.caption.monospaced()).foregroundStyle(.secondary)
         default:
             EmptyView()
+        }
+    }
+}
+
+/// Originalets text ovanför repliken som granskas.
+private struct SourceText: View {
+    let text: String?
+    let language: Language?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text((language?.code ?? "orig").uppercased())
+                .font(.caption2.weight(.bold).monospaced())
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4).padding(.vertical, 1)
+                .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 3))
+            if let text {
+                Text(text)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            } else {
+                Text("Inget i originalet visas samtidigt")
+                    .font(.callout.italic())
+                    .foregroundStyle(.tertiary)
+            }
         }
     }
 }

@@ -233,6 +233,78 @@ enum SubtitleChecker {
         return issues
     }
 
+    // MARK: - Jämförelse med originalet
+
+    /// - Parameters:
+    ///   - sources: originaltext per replik (seq) i översättningen
+    ///   - missing: originalrepliker utan motsvarighet, med repliken de hör närmast
+    static func compare(_ cues: [ReviewCue], sources: [Int: String],
+                        missing: [(seq: Int, text: String)], sourceLanguage: Language) -> [ReviewIssue] {
+        var issues: [ReviewIssue] = []
+        let lang = sourceLanguage.name
+
+        for m in missing {
+            let snippet = stripTags(m.text).replacingOccurrences(of: "\n", with: " ")
+            issues.append(ReviewIssue(cueSeq: m.seq, category: .accuracy, severity: .warning,
+                                      message: "En replik i originalet saknar motsvarighet i översättningen: ”\(snippet)”"))
+        }
+
+        for cue in cues {
+            let visible = stripTags(cue.text).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let source = sources[cue.seq] else {
+                if !visible.isEmpty {
+                    issues.append(ReviewIssue(cueSeq: cue.seq, category: .accuracy, severity: .suggestion,
+                                              message: "Inget i originalet visas samtidigt som den här repliken."))
+                }
+                continue
+            }
+
+            // Kursiv text (t.ex. röster utanför bild, sång) ska följa med.
+            let srcItalic = isFullyItalic(source), dstItalic = cue.text.range(of: "(?i)<i>", options: .regularExpression) != nil
+            if srcItalic && !dstItalic {
+                issues.append(ReviewIssue(cueSeq: cue.seq, category: .formatting, severity: .suggestion,
+                                          message: "Originalet är kursivt (<i>) men inte översättningen.",
+                                          fix: visible.isEmpty ? nil : .text(wrapItalic(cue.text))))
+            } else if !srcItalic && source.range(of: "(?i)<i>", options: .regularExpression) == nil && dstItalic {
+                issues.append(ReviewIssue(cueSeq: cue.seq, category: .formatting, severity: .suggestion,
+                                          message: "Översättningen är kursiv men inte originalet.",
+                                          fix: .text(cue.text.replacingOccurrences(of: "(?i)</?i>", with: "", options: .regularExpression))))
+            }
+
+            // Siffror med minst två siffror (årtal, belopp, tider) ska finnas kvar.
+            let srcNumbers = numbers(in: source), dstNumbers = Set(numbers(in: cue.text))
+            let lost = srcNumbers.filter { !dstNumbers.contains($0) }
+            if !lost.isEmpty {
+                issues.append(ReviewIssue(cueSeq: cue.seq, category: .accuracy, severity: .warning,
+                                          message: "Siffror i originalet (\(lang)) saknas i översättningen: \(lost.joined(separator: ", "))."))
+            }
+        }
+        return issues
+    }
+
+    private static func isFullyItalic(_ s: String) -> Bool {
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return t.hasPrefix("<i>") && t.hasSuffix("</i>")
+    }
+
+    private static func wrapItalic(_ s: String) -> String {
+        let plain = s.replacingOccurrences(of: "(?i)</?i>", with: "", options: .regularExpression)
+        return plain.components(separatedBy: "\n").map { "<i>\($0)</i>" }.joined(separator: "\n")
+    }
+
+    /// "1942", "3,50", "10:30" → siffror utan skiljetecken ("1942", "350", "1030").
+    private static func numbers(in s: String) -> [String] {
+        guard let re = try? NSRegularExpression(pattern: #"\d+(?:[.,:]\d+)*"#) else { return [] }
+        let text = stripTags(s)
+        var seen = Set<String>()
+        return re.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap { m in
+            guard let r = Range(m.range, in: text) else { return nil }
+            let digits = text[r].filter(\.isNumber)
+            guard digits.count >= 2, seen.insert(String(digits)).inserted else { return nil }
+            return String(digits)
+        }
+    }
+
     // MARK: - Hjälpare
 
     static func stripTags(_ s: String) -> String {

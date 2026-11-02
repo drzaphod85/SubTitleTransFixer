@@ -70,6 +70,25 @@ interpunktion, ordval, konsekvens (t.ex. namn som stavas olika) och repliker
 som inte går att förstå. Om en sparad prompt matchar filen används dess
 ordlista för namn och termer.
 
+### Jämför med originalet
+
+När en översättning granskas kan den jämföras med originalfilen:
+
+- Från översättningsvyn (knappen **Granska**) är originalet redan kopplat.
+- När du öppnar en fil letar appen efter originalet i samma mapp
+  (`Show_sv.srt` → `Show_en.srt`, `Show.en.srt`, `Show.srt` …). Du kan också
+  välja fil själv med **Jämför med originalfil…**.
+- Replikerna paras ihop via tidkoderna, så det fungerar även när original och
+  översättning delar upp repliker olika. Originaltexten visas ovanför varje
+  replik.
+
+Jämförelsen hittar lokalt repliker i originalet som saknas i översättningen
+(och tvärtom), kursiv text som inte följt med, och årtal, belopp och tider som
+ändrats eller fallit bort. När du klickar **Granska och jämför** kontrollerar
+Claude dessutom felöversättningar, innehåll som fallit bort eller lagts till,
+namn, siffror, negationer och tilltal. Vanlig förtätning räknas inte som fel.
+Anmärkningarna hamnar i kategorin **Mot originalet**.
+
 Varje anmärkning visar ett förslag där borttagen text är röd och ny text är
 grön. Välj **Åtgärda** eller **Ignorera**, eller **Åtgärda alla** för alla
 tekniska rättningar eller alla Claudes förslag. Repliker kan också redigeras
