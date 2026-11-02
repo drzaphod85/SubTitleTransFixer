@@ -50,6 +50,29 @@ enum SRT {
         return max(Double(end - start) / 1000, 0.001)
     }
 
+    /// Start och slut i millisekunder.
+    static func times(of timecode: String) -> (start: Int, end: Int)? {
+        let parts = timecode.components(separatedBy: "-->")
+        guard parts.count == 2, let start = milliseconds(parts[0]), let end = milliseconds(parts[1]) else { return nil }
+        return (start, end)
+    }
+
+    /// 3723004 → "01:02:03,004"
+    static func format(ms: Int) -> String {
+        let v = max(ms, 0)
+        return String(format: "%02d:%02d:%02d,%03d", v / 3_600_000, (v / 60_000) % 60, (v / 1000) % 60, v % 1000)
+    }
+
+    /// Byter sluttiden men behåller starttid och ev. positionstaggar.
+    static func replacingEnd(in timecode: String, with endMs: Int) -> String {
+        let parts = timecode.components(separatedBy: "-->")
+        guard parts.count == 2 else { return timecode }
+        let after = parts[1].trimmingCharacters(in: .whitespaces)
+        let tokens = after.split(separator: " ", maxSplits: 1)
+        let rest = tokens.count > 1 ? " " + tokens[1] : ""
+        return parts[0].trimmingCharacters(in: .whitespaces) + " --> " + format(ms: endMs) + rest
+    }
+
     private static func milliseconds(_ s: String) -> Int? {
         // Tål även positioneringstaggar efter sluttiden ("... X1:100 ...")
         let token = s.trimmingCharacters(in: .whitespaces)

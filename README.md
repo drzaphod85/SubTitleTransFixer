@@ -47,6 +47,34 @@ skriptet `translate-srt.mjs`, men lägger till:
   den gamla som underlag.
 - Det sparade filnamnet får målspråkets kod: `Show_en.srt` → `Show_de.srt`.
 
+## Granska en undertextfil
+
+**Granska** i sidofältet (eller ⌥⌘O) kontrollerar vilken `.srt`-fil som helst,
+på vilket språk som helst. Det går också att granska en översättning direkt
+med knappen **Granska** i översättningsvyn.
+
+**Tekniska kontroller** körs direkt, lokalt och gratis:
+
+| Kategori | Kontrolleras |
+|---|---|
+| Tidkoder | otolkbara tidkoder, slut före start, överlapp med nästa replik (kan rättas), fel ordning, för kort (< 0,7 s) eller för lång (> 7 s) visningstid |
+| Numrering | hopp och dubbletter (kan numreras om) |
+| Radlängd / läshastighet | fler än 2 rader, för långa rader, för hög CPS |
+| Formatering | tomma repliker, dubbla mellanslag, mellanslag i början/slutet, obalanserade `<i>`/`<b>`/`<u>`-taggar |
+| Interpunktion | mellanslag före skiljetecken (utom franska ! ? : ;), saknat mellanslag efter, parenteser och citattecken som inte går jämnt ut, liten bokstav efter avslutad mening |
+| Konsekvens | blandat `...`/`…`, blandade dialogstreck (`-`, `- `, `– `) |
+| Stavning | upprepade ord (”att att”) |
+
+**Granska språket** låter Claude gå igenom stavning, grammatik,
+interpunktion, ordval, konsekvens (t.ex. namn som stavas olika) och repliker
+som inte går att förstå. Om en sparad prompt matchar filen används dess
+ordlista för namn och termer.
+
+Varje anmärkning visar ett förslag där borttagen text är röd och ny text är
+grön. Välj **Åtgärda** eller **Ignorera**, eller **Åtgärda alla** för alla
+tekniska rättningar eller alla Claudes förslag. Repliker kan också redigeras
+direkt och återställas till originalet. **Spara** skriver den rättade filen.
+
 ## Krav
 
 - macOS 14 (Sonoma) eller senare
@@ -166,6 +194,10 @@ Sources/Undertextaren/
 ├── Core/
 │   ├── SRT.swift                 parser/serialiserare, tidkoder, titel ur filnamn
 │   ├── Language.swift            språklista, målspråksregler, språkigenkänning
+│   ├── SubtitleChecker.swift     tekniska kontroller av en .srt-fil
+│   ├── ReviewSession.swift       granskning: anmärkningar, rättningar, Claude-granskning
+│   ├── ReviewModels.swift        anmärkningar, kategorier, allvarlighetsgrad
+│   ├── TextDiff.swift            ordvis jämförelse för att visa ändringar
 │   ├── AnthropicClient.swift     Messages API (rå HTTP), retry/backoff, JSON-tolkning
 │   ├── PromptBuilder.swift       grundstil + verksprofil + beslut + svarsformat
 │   ├── TranslationSession.swift  översättningsmotor, frågor, förslag

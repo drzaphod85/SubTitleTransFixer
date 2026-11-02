@@ -11,6 +11,8 @@ struct ContentView: View {
                 Section("Arbete") {
                     Label("Översätt", systemImage: "captions.bubble")
                         .tag(SidebarItem.translate)
+                    Label("Granska", systemImage: "checkmark.seal")
+                        .tag(SidebarItem.review)
                 }
                 Section("Promptbibliotek") {
                     if model.library.profiles.isEmpty {
@@ -69,6 +71,8 @@ struct ContentView: View {
             case .profile(let id) where model.library.profile(id: id) != nil:
                 ProfileEditorView(profileID: id)
                     .id(id)
+            case .review:
+                ReviewView()
             default:
                 TranslationView()
             }

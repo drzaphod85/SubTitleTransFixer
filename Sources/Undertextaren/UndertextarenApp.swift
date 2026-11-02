@@ -7,6 +7,7 @@ final class AppModel {
     let settings: AppSettings
     let library: PromptLibrary
     let session: TranslationSession
+    let review: ReviewSession
     var selection: SidebarItem? = .translate
 
     init() {
@@ -15,6 +16,7 @@ final class AppModel {
         self.settings = settings
         self.library = library
         self.session = TranslationSession(library: library, settings: settings)
+        self.review = ReviewSession(settings: settings, library: library)
     }
 
     // MARK: Import/export av prompter
@@ -57,6 +59,7 @@ final class AppModel {
 
 enum SidebarItem: Hashable {
     case translate
+    case review
     case profile(UUID)
 }
 
@@ -85,6 +88,23 @@ struct UndertextarenApp: App {
                     .keyboardShortcut("i", modifiers: [.command, .shift])
                 Button("Exportera alla prompter…") { model.exportAll() }
                     .disabled(model.library.profiles.isEmpty)
+            }
+            CommandMenu("Granska") {
+                Button("Granska undertextfil…") {
+                    model.selection = .review
+                    model.review.openPanel()
+                }
+                .keyboardShortcut("o", modifiers: [.command, .option])
+                Button("Granska aktuell översättning") {
+                    model.review.load(translation: model.session)
+                    model.selection = .review
+                }
+                .disabled(model.session.translatedCount == 0)
+                Button(model.review.isReviewing ? "Stoppa språkgranskningen" : "Granska språket med Claude") {
+                    model.review.isReviewing ? model.review.stop() : model.review.startClaudeReview()
+                }
+                .keyboardShortcut("r", modifiers: [.command, .option])
+                .disabled(!model.review.hasFile)
             }
             CommandMenu("Översättning") {
                 Button(model.session.isRunning ? "Stoppa" : "Starta översättning") {

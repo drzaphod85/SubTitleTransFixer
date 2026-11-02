@@ -108,6 +108,12 @@ struct TranslationView: View {
                 .disabled(!session.hasFile)
                 .help("Översätt till \(session.targetLanguage.name) (⌘R)")
             }
+            Button {
+                model.review.load(translation: session)
+                model.selection = .review
+            } label: { Label("Granska", systemImage: "checkmark.seal") }
+                .disabled(session.translatedCount == 0)
+                .help("Granska översättningen: tekniska fel, stavning, grammatik och interpunktion")
             Button { session.savePanel() } label: { Label("Spara", systemImage: "square.and.arrow.down") }
                 .disabled(session.translatedCount == 0)
                 .help("Spara översatt .srt (⌘S)")
