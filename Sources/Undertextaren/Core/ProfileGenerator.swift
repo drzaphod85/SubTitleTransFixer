@@ -74,6 +74,54 @@ enum ProfileGenerator {
         return profile(from: obj, base: r.existing, fallbackTitle: r.title, fallbackKind: r.kind)
     }
 
+    static let structureSystem = """
+    Du är en erfaren svensk undertextredaktör. Användaren har en befintlig
+    översättningsprompt (stilguide) för ett visst verk, skriven för hand. Din
+    uppgift är att föra över den till en strukturerad VERKSPROFIL utan att något
+    går förlorat.
+
+    Regler:
+    - Tappa INGENTING. Varje instruktion, regel, exempel och namn i originalet ska
+      finnas kvar någonstans i profilen.
+    - Karaktärsbeskrivningar (vem någon är, hur hen talar, tilltal) → characters.
+    - Namn, platser, titlar och termer med en angiven svensk översättning (eller
+      "behålls") → glossary.
+    - Allt övrigt (ton, tidsperiod, du/ni-regler, dialekt, kraftuttryck, exempel,
+      tekniska regler) → style_guide, så ordagrant som möjligt. Behåll
+      originalets rubriker och punktlistor.
+    - Lägg inte till egna regler. Du får skriva synopsis om du känner till verket
+      och fylla i year och aliases om du vet dem säkert.
+    - Behåll originalets språk (oftast svenska).
+
+    Svara ENBART med ett JSON-objekt på formen:
+    {"title": "...", "aliases": ["..."], "kind": "series" | "film", "year": "...",
+     "synopsis": "...", "style_guide": "...",
+     "characters": [{"name": "...", "description": "...", "speech": "..."}],
+     "glossary": [{"source": "...", "target": "...", "note": "..."}],
+     "notes": ["..."]}
+    """
+
+    /// Gör om en befintlig, handskriven prompt till en strukturerad profil.
+    static func structure(text: String, title: String, kind: MediaKind,
+                          into existing: SeriesProfile?, client: AnthropicClient) async throws -> SeriesProfile {
+        var user = "Titel: \(title)\nTyp: \(kind.label)\n\nBEFINTLIG PROMPT:\n<<<\n\(text)\n>>>\n"
+        if existing != nil {
+            user += "\nPrompten ska ersätta stilguiden i en befintlig profil. Befintliga karaktärer "
+            user += "och termer finns redan; ta bara med dem i svaret om originalet säger något nytt om dem.\n"
+        }
+        let raw = try await client.complete(system: structureSystem, user: user, maxTokens: 16000)
+        guard let obj = try JSONExtract.value(from: raw) as? [String: Any] else {
+            throw AnthropicClient.APIError(message: "Claude returnerade ingen profil.")
+        }
+        var base = existing
+        // Vid uppdatering ska den nya texten ersätta stilguiden helt.
+        base?.styleGuide = ""
+        var p = profile(from: obj, base: base, fallbackTitle: title, fallbackKind: kind)
+        if p.styleGuide.isEmpty { p.styleGuide = text } // säkerhetsnät
+        if existing == nil { p.title = title; p.kind = kind }
+        return p
+    }
+
     static func profile(from obj: [String: Any], base: SeriesProfile?, fallbackTitle: String, fallbackKind: MediaKind) -> SeriesProfile {
         var p = base ?? SeriesProfile(title: fallbackTitle, kind: fallbackKind)
         let title = JSONExtract.string(obj["title"])

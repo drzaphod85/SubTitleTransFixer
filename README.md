@@ -89,6 +89,26 @@ Du kan också välja *Ansträngning (effort)* och om en reservmodell ska använd
 när en förfrågan avböjs (server-side fallback). Sonnet 5.5 och Haiku 5.5 är
 billigare alternativ till Opus 5.5.
 
+## Importera befintliga prompter
+
+Har du redan stilguider, t.ex. de `.md`/`.txt`-filer du använt med
+`STYLE_FILE` i skriptet, kan du importera dem:
+
+- **Arkiv → Importera prompter… (⇧⌘I)**, knappen i sidofältet, eller släpp
+  filerna på sidofältet. Flera filer går bra på en gång.
+- Titeln gissas ur filnamnet (`little-house-on-the-prairie_stil.md` →
+  *Little House On The Prairie*) och kan ändras innan import. Titeln är det
+  som matchas mot undertextfilernas namn, så skriv den som serien heter.
+- **Spara som:** ny prompt, eller ersätt/uppdatera en som redan finns.
+- **Låt Claude dela upp …** (valfritt): Claude flyttar karaktärer och termer
+  till egna listor och lägger resten i stilguiden. Utan bocken importeras
+  texten ordagrant som stilguide.
+- `.json` som exporterats från Undertextaren (en eller alla prompter)
+  importeras som de är.
+
+Exportera med **Exportera** i prompten, högerklick i sidofältet eller
+**Arkiv → Exportera alla prompter…**.
+
 ## Var sparas promptarna?
 
 `~/Library/Application Support/Undertextaren/profiles.json`. Det är vanlig
@@ -106,7 +126,8 @@ Sources/Undertextaren/
 │   ├── PromptBuilder.swift       grundstil + verksprofil + beslut + svarsformat
 │   ├── TranslationSession.swift  översättningsmotor, frågor, förslag
 │   ├── PromptLibrary.swift       sparade promptar, matchning mot titel
-│   ├── ProfileGenerator.swift    Claude skapar eller förbättrar en prompt
+│   ├── ProfileGenerator.swift    Claude skapar, förbättrar eller strukturerar en prompt
+│   ├── PromptImporter.swift      import/export av prompter (.md/.txt/.json)
 │   ├── AppSettings.swift         inställningar + nyckelring
 │   └── Models.swift              datatyper
 └── Views/                        SwiftUI-vyer

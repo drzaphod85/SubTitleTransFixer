@@ -131,6 +131,7 @@ struct ProfileEditorView: View {
                         model.selection = .translate
                     } label: { Label("Använd för aktuell fil", systemImage: "checkmark.circle") }
                     Button { showImprove = true } label: { Label("Förbättra med Claude", systemImage: "wand.and.stars") }
+                    Button { model.export(profileID) } label: { Label("Exportera", systemImage: "square.and.arrow.up") }
                     Button(role: .destructive) { confirmDelete = true } label: { Label("Radera", systemImage: "trash") }
                 }
             }
