@@ -115,6 +115,13 @@ Exportera med **Exportera** i prompten, högerklick i sidofältet eller
 JSON som går att säkerhetskopiera eller dela. **Inställningar → Visa i
 Finder** öppnar mappen.
 
+## Ikon
+
+Ikonen finns i `Assets/`: `AppIcon.svg` är källan, `AppIcon.icns` används av
+`build-app.sh` och `AppIcon-1024.png` är en förhandsvisning. Visar Dock eller
+Finder fortfarande den gamla ikonen efter ett bygge, kör
+`killall Dock; killall Finder`.
+
 ## Kodens upplägg
 
 ```
