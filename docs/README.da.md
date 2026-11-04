@@ -94,6 +94,16 @@ nægtelser og tiltaleformer. Normal komprimering betragtes ikke som en fejl.
 - **Fortryd** og **Annuller fortryd** virker for hver rettelse, ignoreret bemærkning og redigering. **Gendan alt…** går tilbage til filen, som den var, da du åbnede den.
 - Intet gemmes automatisk. **Gem** (⌘S) skriver tilbage til den fil, du åbnede – første gang gemmes en kopi af originalen som `<navn>.srt.bak` – og **Gem som…** skriver en ny fil. Appen spørger, før du åbner en anden fil eller afslutter med ændringer, der ikke er gemt.
 
+### Afspil videoen og ret tiderne
+
+Hvis en video med samme navn ligger ved siden af undertekstfilen – f.eks. `Matador - S01E01.mkv` ved siden af `Matador - S01E01.sv.srt` – findes den automatisk (eller vælg en med **Vælg video…**).
+
+- **▶** på hver replik afspiller fra 5 sekunder før til 5 sekunder efter, med replikken vist i billedet og en lydkurve nedenunder. Klik i kurven for at springe dertil.
+- Justér start og slut med ±0,1 s eller **Sæt ved afspilningspositionen**, eller lad **Foreslå ud fra lyden** finde, hvor talen begynder og slutter. **Brug tiderne** gennemfører ændringen (den kan fortrydes).
+- **Kontrollér tidskoderne mod lyden** analyserer hele afsnittet og foreslår nye tider for replikker, der ser ud til at begynde eller slutte på det forkerte tidspunkt. Godkend dem én ad gangen eller med **Godkend alle forslag**.
+- Analysen måler kun lydstyrke, så musik og lydeffekter kan snyde den – afspil replikken, før du godkender.
+- macOS afspiller `.mp4`, `.m4v` og `.mov` på egen hånd. `.mkv`, `.avi` og andre formater kræver [ffmpeg](https://ffmpeg.org): `brew install ffmpeg`.
+
 ## Krav
 
 - macOS 14 (Sonoma) eller nyere
@@ -232,6 +242,7 @@ Sources/SubTitleTransFixer/
 │   ├── ReviewSession.swift       review: issues, fixes, comparison, Claude review
 │   ├── ReviewModels.swift        issues, categories, severity
 │   ├── TextDiff.swift            word-level diff to show changes
+│   ├── Media.swift               video next to the file, ffmpeg, audio analysis, playback
 │   ├── AppSettings.swift         settings + keychain
 │   └── Models.swift              data types
 ├── Localization/                 L(), UI languages and translation tables

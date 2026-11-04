@@ -94,6 +94,16 @@ neitanir og ávarp. Venjuleg stytting er ekki talin villa.
 - **Afturkalla** og **Endurgera** virka fyrir hverja lagfæringu, hunsaða athugasemd og breytingu. **Afturkalla allt…** færir skrána aftur í það horf sem hún var í þegar þú opnaðir hana.
 - Ekkert er vistað sjálfvirkt. **Vista** (⌘S) skrifar aftur í skrána sem þú opnaðir – í fyrsta skiptið er afrit af frumskránni geymt sem `<heiti>.srt.bak` – og **Vista sem…** skrifar nýja skrá. Forritið spyr áður en þú opnar aðra skrá eða hættir með óvistaðar breytingar.
 
+### Spila myndskeiðið og laga tímana
+
+Ef myndskeið með sama heiti er við hlið skjátextaskrárinnar – t.d. `Matador - S01E01.mkv` við hlið `Matador - S01E01.sv.srt` – finnst það sjálfkrafa (eða veldu eitt með **Velja myndskeið…**).
+
+- **▶** á hverjum skjátexta spilar frá 5 sekúndum á undan til 5 sekúndna á eftir, með skjátextann í myndinni og hljóðkúrfu fyrir neðan. Smelltu í kúrfuna til að hoppa þangað.
+- Stilltu upphaf og endi um ±0,1 s eða með **Setja við spilunarstað**, eða láttu **Tillaga út frá hljóðinu** finna hvar tal hefst og endar. **Nota tímana** framkvæmir breytinguna (hægt er að afturkalla hana).
+- **Bera tímakóða saman við hljóðið** greinir allan þáttinn og leggur til nýja tíma fyrir skjátexta sem virðast hefjast eða enda á röngum tíma. Samþykktu þá einn í einu eða með **Samþykkja allar tillögur**.
+- Greiningin mælir aðeins hljóðstyrk, svo tónlist og hljóðbrellur geta blekkt hana – spilaðu skjátextann áður en þú samþykkir.
+- macOS spilar `.mp4`, `.m4v` og `.mov` eitt og sér. `.mkv`, `.avi` og önnur snið þurfa [ffmpeg](https://ffmpeg.org): `brew install ffmpeg`.
+
 ## Kröfur
 
 - macOS 14 (Sonoma) eða nýrra
@@ -232,6 +242,7 @@ Sources/SubTitleTransFixer/
 │   ├── ReviewSession.swift       review: issues, fixes, comparison, Claude review
 │   ├── ReviewModels.swift        issues, categories, severity
 │   ├── TextDiff.swift            word-level diff to show changes
+│   ├── Media.swift               video next to the file, ffmpeg, audio analysis, playback
 │   ├── AppSettings.swift         settings + keychain
 │   └── Models.swift              data types
 ├── Localization/                 L(), UI languages and translation tables

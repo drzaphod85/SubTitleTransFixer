@@ -101,6 +101,16 @@ tiivistämistä ei pidetä virheenä.
 - **Peru** ja **Tee uudelleen** toimivat jokaiselle korjaukselle, ohitetulle huomautukselle ja muokkaukselle. **Palauta kaikki…** palauttaa tiedoston sellaiseksi kuin se oli avattaessa.
 - Mitään ei tallenneta automaattisesti. **Tallenna** (⌘S) kirjoittaa avaamaasi tiedostoon – ensimmäisellä kerralla alkuperäisestä tallennetaan kopio nimellä `<nimi>.srt.bak` – ja **Tallenna nimellä…** kirjoittaa uuden tiedoston. Sovellus kysyy, ennen kuin avaat toisen tiedoston tai lopetat, jos muutoksia ei ole tallennettu.
 
+### Toista video ja korjaa ajat
+
+Jos tekstitystiedoston vieressä on samanniminen video – esim. `Matador - S01E01.mkv` tiedoston `Matador - S01E01.sv.srt` vieressä – se löytyy automaattisesti (tai valitse video kohdasta **Valitse video…**).
+
+- Jokaisen repliikin **▶**-painike toistaa 5 sekuntia ennen ja 5 sekuntia jälkeen repliikin, ja repliikki näkyy kuvassa ja äänikäyrä sen alla. Hyppää kohtaan klikkaamalla käyrää.
+- Säädä alkua ja loppua ±0,1 s:n välein tai painikkeella **Aseta toistokohtaan**, tai anna **Ehdota äänen perusteella** -toiminnon etsiä, missä puhe alkaa ja päättyy. **Käytä aikoja** tekee muutoksen (sen voi perua).
+- **Tarkista aikakoodit äänestä** analysoi koko jakson ja ehdottaa uusia aikoja repliikeille, jotka näyttävät alkavan tai päättyvän väärään aikaan. Hyväksy ne yksitellen tai painikkeella **Hyväksy kaikki ehdotukset**.
+- Analyysi mittaa vain äänenvoimakkuutta, joten musiikki ja äänitehosteet voivat hämätä sitä – toista repliikki ennen hyväksymistä.
+- macOS toistaa `.mp4`-, `.m4v`- ja `.mov`-tiedostot itse. `.mkv`, `.avi` ja muut muodot vaativat [ffmpegin](https://ffmpeg.org): `brew install ffmpeg`.
+
 ## Vaatimukset
 
 - macOS 14 (Sonoma) tai uudempi
@@ -247,6 +257,7 @@ Sources/SubTitleTransFixer/
 │   ├── ReviewSession.swift       review: issues, fixes, comparison, Claude review
 │   ├── ReviewModels.swift        issues, categories, severity
 │   ├── TextDiff.swift            word-level diff to show changes
+│   ├── Media.swift               video next to the file, ffmpeg, audio analysis, playback
 │   ├── AppSettings.swift         settings + keychain
 │   └── Models.swift              data types
 ├── Localization/                 L(), UI languages and translation tables

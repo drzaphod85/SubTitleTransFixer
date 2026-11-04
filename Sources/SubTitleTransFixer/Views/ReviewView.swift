@@ -31,6 +31,9 @@ struct ReviewView: View {
         .toolbar { toolbar }
         .navigationTitle(review.hasFile ? review.fileName : L("Review"))
         .navigationSubtitle(review.hasFile ? L("Reviewing {0}", review.language.inlineName) : "")
+        .sheet(item: previewBinding) { item in
+            MediaPreviewSheet(seq: item.id)
+        }
         .alert(L("Something went wrong"), isPresented: errorBinding) {
             Button(L("OK")) { review.errorMessage = nil }
         } message: {
@@ -45,6 +48,13 @@ struct ReviewView: View {
         guard let url = srt else { return false }
         review.load(url: url)
         return true
+    }
+
+    private struct PreviewItem: Identifiable { let id: Int }
+
+    private var previewBinding: Binding<PreviewItem?> {
+        let review = self.review
+        return Binding(get: { review.previewSeq.map(PreviewItem.init) }, set: { review.previewSeq = $0?.id })
     }
 
     private var errorBinding: Binding<Bool> {
@@ -194,6 +204,7 @@ private struct ReviewHeader: View {
         VStack(alignment: .leading, spacing: 8) {
             mainRow
             SourceRow()
+            MediaRow()
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -402,6 +413,13 @@ private struct ReviewCueRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
+                if review.media.hasVideo {
+                    Button { review.previewSeq = seq } label: {
+                        Image(systemName: "play.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(L("Play from 5 seconds before to 5 seconds after and adjust the timing"))
+                }
                 if cue.isChanged {
                     Button { review.revert(seq: cue.seq) } label: {
                         Image(systemName: "arrow.uturn.backward.circle")
@@ -466,6 +484,9 @@ private struct IssueRow: View {
                     if issue.origin == .claude {
                         Image(systemName: "sparkles").font(.caption2).foregroundStyle(.purple)
                             .help(L("Found by Claude"))
+                    } else if issue.origin == .audio {
+                        Image(systemName: "waveform").font(.caption2).foregroundStyle(.teal)
+                            .help(L("Suggested by the audio analysis – play the subtitle to check"))
                     }
                     Text(issue.message)
                         .font(.callout)
@@ -474,7 +495,9 @@ private struct IssueRow: View {
                 fixPreview
                 if issue.fix == nil {
                     Text(issue.category == .timing || issue.category == .readingSpeed
-                         ? L("No automatic fix – click the time on the left to edit the timecode, or edit the text.")
+                         ? (review.media.hasVideo
+                            ? L("No automatic fix – press ▶ to play the subtitle and adjust its timing, or click the time on the left.")
+                            : L("No automatic fix – click the time on the left to edit the timecode, or edit the text."))
                          : L("No automatic fix – edit the text directly, or ignore the issue."))
                         .font(.caption)
                         .foregroundStyle(.secondary)

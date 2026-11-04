@@ -108,6 +108,16 @@ negations and forms of address. Normal condensation is not treated as an error.
   and **Save As…** writes a new file. The app asks before you open another file
   or quit with unsaved changes.
 
+### Play the video and fix the timing
+
+If a video with the same name lies next to the subtitle file – e.g. `Matador - S01E01.mkv` next to `Matador - S01E01.sv.srt` – it is found automatically (or choose one with **Choose video…**).
+
+- **▶** on every subtitle plays from 5 seconds before to 5 seconds after, with the subtitle shown in the picture and a loudness curve below. Click in the curve to jump there.
+- Adjust the start and end with ±0.1 s or **Set at the playhead**, or let **Suggest from the audio** find where the speech starts and ends. **Use the times** applies the change (it can be undone).
+- **Check timecodes against the audio** analyses the whole episode and suggests new times for subtitles that seem to start or end at the wrong time. Accept them one by one or with **Accept all suggestions**.
+- The analysis only measures loudness, so music and sound effects can fool it – play the subtitle before you accept.
+- macOS plays `.mp4`, `.m4v` and `.mov` by itself. `.mkv`, `.avi` and other formats need [ffmpeg](https://ffmpeg.org): `brew install ffmpeg`.
+
 ## Requirements
 
 - macOS 14 (Sonoma) or later
@@ -246,6 +256,7 @@ Sources/SubTitleTransFixer/
 │   ├── ReviewSession.swift       review: issues, fixes, comparison, Claude review
 │   ├── ReviewModels.swift        issues, categories, severity
 │   ├── TextDiff.swift            word-level diff to show changes
+│   ├── Media.swift               video next to the file, ffmpeg, audio analysis, playback
 │   ├── AppSettings.swift         settings + keychain
 │   └── Models.swift              data types
 ├── Localization/                 L(), UI languages and translation tables

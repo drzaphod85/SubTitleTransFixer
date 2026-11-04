@@ -133,6 +133,8 @@ enum IssueFix: Hashable {
 
 enum IssueOrigin: Hashable {
     case local, claude
+    /// Suggested by the audio analysis of the video.
+    case audio
 }
 
 struct ReviewIssue: Identifiable, Hashable {
@@ -143,12 +145,13 @@ struct ReviewIssue: Identifiable, Hashable {
     var message: String
     var fix: IssueFix?
     var origin: IssueOrigin = .local
-    /// The text Claude reviewed – if the subtitle has changed since then,
-    /// the suggestion cannot be applied as is.
+    /// The text Claude reviewed (or, for audio suggestions, the timecode that was
+    /// analysed) – if the subtitle has changed since then, the suggestion cannot be
+    /// applied as is.
     var basedOn: String?
 
     /// Stable key so that ignored local issues stay ignored when the checks run again.
     var key: String {
-        origin == .claude ? id.uuidString : "\(category.rawValue)|\(cueSeq)|\(message)"
+        origin == .local ? "\(category.rawValue)|\(cueSeq)|\(message)" : id.uuidString
     }
 }

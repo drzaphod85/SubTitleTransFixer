@@ -27,6 +27,14 @@ final class ReviewSession {
 
     var localIssues: [ReviewIssue] = []
     var claudeIssues: [ReviewIssue] = []
+    /// Timing suggestions from the audio of the video.
+    var audioIssues: [ReviewIssue] = []
+
+    // Video that belongs to the file
+    @ObservationIgnored let media = MediaSupport()
+    /// The subtitle shown in the playback preview.
+    var previewSeq: Int?
+    var isCheckingAudio = false
     var ignoredKeys: Set<String> = []
 
     var isReviewing = false
@@ -40,7 +48,12 @@ final class ReviewSession {
     private struct Snapshot {
         var cues: [ReviewCue]
         var claudeIssues: [ReviewIssue]
+        var audioIssues: [ReviewIssue]
         var ignoredKeys: Set<String>
+    }
+
+    private var snapshot: Snapshot {
+        Snapshot(cues: cues, claudeIssues: claudeIssues, audioIssues: audioIssues, ignoredKeys: ignoredKeys)
     }
     private var undoStack: [Snapshot] = []
     private var redoStack: [Snapshot] = []
@@ -76,7 +89,7 @@ final class ReviewSession {
 
     /// All active (not ignored) issues, sorted by subtitle.
     var issues: [ReviewIssue] {
-        (localIssues + claudeIssues)
+        (localIssues + claudeIssues + audioIssues)
             .filter { !ignoredKeys.contains($0.key) }
             .sorted { ($0.cueSeq, -$0.severity.rawValue) < ($1.cueSeq, -$1.severity.rawValue) }
     }
@@ -106,6 +119,7 @@ final class ReviewSession {
             }
             fileURL = url
             isFileBacked = true
+            media.setVideo(MediaLocator.findVideo(for: url))
             setCues(parsed.map { ReviewCue(seq: $0.seq, number: $0.number, timecode: $0.timecode, original: $0.original, text: $0.original,
                                            originalTimecode: $0.timecode) },
                     name: url.lastPathComponent)
@@ -134,6 +148,7 @@ final class ReviewSession {
                              originalTimecode: c.timecode)
         }
         isFileBacked = false
+        media.setVideo(session.fileURL.flatMap { MediaLocator.findVideo(for: $0) })
         setCues(cues, name: fileURL?.lastPathComponent ?? L("Translation"))
         languageCode = session.targetLanguage.code
         profileID = session.profileID
@@ -149,6 +164,8 @@ final class ReviewSession {
 
     private func setCues(_ new: [ReviewCue], name: String) {
         cues = new
+        audioIssues = []
+        previewSeq = nil
         initialCues = new
         savedCues = new
         undoStack = []
@@ -276,11 +293,11 @@ final class ReviewSession {
     /// Looks for the original in the same folder: "Show_sv.srt" → "Show_en.srt", "Show.en.srt", "Show.srt" …
     private func findOriginal(for url: URL) -> URL? {
         let dir = url.deletingLastPathComponent()
-        let base = Self.baseName(url.lastPathComponent)
+        let base = SRT.baseName(url.lastPathComponent)
         guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return nil }
         let candidates = files.filter {
             $0.pathExtension.lowercased() == "srt" && $0.lastPathComponent != url.lastPathComponent
-                && Self.baseName($0.lastPathComponent) == base
+                && SRT.baseName($0.lastPathComponent) == base
                 && LanguageDetector.hint(fromFileName: $0.lastPathComponent) != language
         }
         // English first, then files with a language code in the name.
@@ -292,21 +309,63 @@ final class ReviewSession {
         }.first
     }
 
-    /// File name without extension and language code, in lower case.
-    private static func baseName(_ fileName: String) -> String {
-        var base = (fileName as NSString).deletingPathExtension.lowercased()
-        let tokens = ["forced", "sdh", "hi", "cc"] + Language.all.flatMap { [$0.code] + $0.aliases }
-        var changed = true
-        while changed {
-            changed = false
-            for t in tokens {
-                for sep in ["_", ".", "-", " "] where base.hasSuffix(sep + t) {
-                    base = String(base.dropLast(t.count + 1))
-                    changed = true
+    // MARK: - Video and audio
+
+    func chooseVideoPanel() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = MediaLocator.videoExtensions.compactMap { UTType(filenameExtension: $0) }
+        panel.message = L("Choose the video that belongs to the subtitles")
+        panel.directoryURL = fileURL?.deletingLastPathComponent()
+        if panel.runModal() == .OK, let url = panel.url {
+            media.setVideo(url)
+            audioIssues = []
+        }
+    }
+
+    func clearVideo() {
+        media.setVideo(nil)
+        audioIssues = []
+        previewSeq = nil
+    }
+
+    /// Analyses the audio of the whole video and suggests new times for subtitles
+    /// whose start or end seems to be off.
+    func checkTimingAgainstAudio() {
+        guard media.hasVideo, !isCheckingAudio else { return }
+        isCheckingAudio = true
+        statusText = L("Analysing the audio … this takes a few seconds per episode.")
+        Task {
+            defer { isCheckingAudio = false }
+            do {
+                let envelope = try await media.loadFullEnvelope()
+                var found: [ReviewIssue] = []
+                let times = cues.map { SRT.times(of: $0.timecode) }
+                for (i, cue) in cues.enumerated() {
+                    guard let t = times[i] else { continue }
+                    let start = Double(t.start) / 1000, end = Double(t.end) / 1000
+                    let prevEnd = i > 0 ? times[i - 1].map { Double($0.end) / 1000 } : nil
+                    let nextStart = i + 1 < cues.count ? times[i + 1].map { Double($0.start) / 1000 } : nil
+                    guard let s = SpeechTiming.suggest(envelope: envelope, envelopeStart: 0, start: start, end: end,
+                                                       prevEnd: prevEnd, nextStart: nextStart) else { continue }
+                    let dStart = s.start - start, dEnd = s.end - end
+                    guard abs(dStart) >= 0.3 || abs(dEnd) >= 0.4 else { continue }
+                    let tc = SRT.format(ms: Int(s.start * 1000)) + " --> " + SRT.format(ms: Int(s.end * 1000))
+                    found.append(ReviewIssue(cueSeq: cue.seq, category: .timing, severity: .suggestion,
+                                             message: L("The audio suggests moving the start {0} s and the end {1} s.",
+                                                        signed(dStart), signed(dEnd)),
+                                             fix: .timecode(tc), origin: .audio, basedOn: cue.timecode))
                 }
+                audioIssues = found
+                statusText = L("The audio analysis suggests new times for {0} subtitles. Play them to check before you accept.", found.count)
+            } catch {
+                errorMessage = error.localizedDescription
+                statusText = L("The audio could not be analysed.")
             }
         }
-        return base
+    }
+
+    private func signed(_ d: Double) -> String {
+        (d >= 0 ? "+" : "−") + formatNumber(abs(d))
     }
 
     // MARK: - Checks
@@ -325,7 +384,7 @@ final class ReviewSession {
     // MARK: - Editing (every change can be undone)
 
     private func checkpoint() {
-        undoStack.append(Snapshot(cues: cues, claudeIssues: claudeIssues, ignoredKeys: ignoredKeys))
+        undoStack.append(snapshot)
         if undoStack.count > 300 { undoStack.removeFirst() }
         redoStack = []
         lastTyping = nil
@@ -333,14 +392,14 @@ final class ReviewSession {
 
     func undo() {
         guard let previous = undoStack.popLast() else { return }
-        redoStack.append(Snapshot(cues: cues, claudeIssues: claudeIssues, ignoredKeys: ignoredKeys))
+        redoStack.append(snapshot)
         restore(previous)
         statusText = L("Undid the last change.")
     }
 
     func redo() {
         guard let next = redoStack.popLast() else { return }
-        undoStack.append(Snapshot(cues: cues, claudeIssues: claudeIssues, ignoredKeys: ignoredKeys))
+        undoStack.append(snapshot)
         restore(next)
         statusText = L("Redid the change.")
     }
@@ -348,6 +407,7 @@ final class ReviewSession {
     private func restore(_ s: Snapshot) {
         cues = s.cues
         claudeIssues = s.claudeIssues
+        audioIssues = s.audioIssues
         ignoredKeys = s.ignoredKeys
         lastTyping = nil
         recheck()
@@ -399,20 +459,23 @@ final class ReviewSession {
 
     func ignore(_ issue: ReviewIssue) {
         checkpoint()
-        if issue.origin == .claude {
-            claudeIssues.removeAll { $0.id == issue.id }
-        } else {
-            ignoredKeys.insert(issue.key)
+        switch issue.origin {
+        case .claude: claudeIssues.removeAll { $0.id == issue.id }
+        case .audio: audioIssues.removeAll { $0.id == issue.id }
+        case .local: ignoredKeys.insert(issue.key)
         }
     }
 
     /// Can the suggestion be used? (Claude's suggestions only apply to the text that was reviewed.)
     func canApply(_ issue: ReviewIssue) -> Bool {
         guard issue.fix != nil else { return false }
-        if issue.origin == .claude, let based = issue.basedOn, let i = index(of: issue.cueSeq) {
-            return cues[i].text == based
+        guard let based = issue.basedOn else { return true }
+        guard let i = index(of: issue.cueSeq) else { return false }
+        switch issue.origin {
+        case .claude: return cues[i].text == based
+        case .audio: return cues[i].timecode == based
+        case .local: return true
         }
-        return true
     }
 
     func apply(_ issue: ReviewIssue) {
@@ -424,6 +487,7 @@ final class ReviewSession {
 
     private func applyWithoutCheckpoint(_ issue: ReviewIssue, fix: IssueFix) {
         perform(fix, seq: issue.cueSeq)
+        if issue.origin == .audio { audioIssues.removeAll { $0.id == issue.id } }
         guard issue.origin == .claude else { return }
         claudeIssues.removeAll { $0.id == issue.id }
         // Claude puts all corrections of a subtitle in every "fixed", so other
@@ -448,6 +512,7 @@ final class ReviewSession {
         case .deleteCue:
             cues.removeAll { $0.seq == seq }
             claudeIssues.removeAll { $0.cueSeq == seq }
+            audioIssues.removeAll { $0.cueSeq == seq }
         }
     }
 
@@ -462,6 +527,12 @@ final class ReviewSession {
         // Claude's suggestions first: they replace whole subtitles.
         for issue in claudeIssues where !ignoredKeys.contains(issue.key) && filter(issue) && canApply(issue) {
             if let fix = issue.fix, claudeIssues.contains(where: { $0.id == issue.id }) {
+                applyWithoutCheckpoint(issue, fix: fix)
+                applied += 1
+            }
+        }
+        for issue in audioIssues where filter(issue) && canApply(issue) {
+            if let fix = issue.fix {
                 applyWithoutCheckpoint(issue, fix: fix)
                 applied += 1
             }

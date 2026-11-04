@@ -93,6 +93,16 @@ negationer och tilltal. Normal komprimering räknas inte som fel.
 - **Ångra** och **Gör om** fungerar för varje rättning, ignorerad anmärkning och redigering. **Återställ allt…** går tillbaka till filen som den var när du öppnade den.
 - Ingenting sparas automatiskt. **Spara** (⌘S) skriver tillbaka till filen du öppnade – första gången sparas en kopia av originalet som `<namn>.srt.bak` – och **Spara som…** skriver en ny fil. Appen frågar innan du öppnar en annan fil eller avslutar med osparade ändringar.
 
+### Spela upp videon och rätta tiderna
+
+Om en video med samma namn ligger bredvid undertextfilen – t.ex. `Matador - S01E01.mkv` bredvid `Matador - S01E01.sv.srt` – hittas den automatiskt (eller välj en med **Välj video…**).
+
+- **▶** på varje replik spelar från 5 sekunder före till 5 sekunder efter, med repliken visad i bilden och en ljudkurva under. Klicka i kurvan för att hoppa dit.
+- Justera start och slut med ±0,1 s eller **Sätt vid uppspelningsläget**, eller låt **Föreslå från ljudet** hitta var talet börjar och slutar. **Använd tiderna** genomför ändringen (den går att ångra).
+- **Kontrollera tidkoderna mot ljudet** analyserar hela avsnittet och föreslår nya tider för repliker som verkar börja eller sluta vid fel tid. Godta dem en och en eller med **Godta alla förslag**.
+- Analysen mäter bara ljudstyrka, så musik och ljudeffekter kan lura den – spela upp repliken innan du godtar.
+- macOS spelar `.mp4`, `.m4v` och `.mov` på egen hand. `.mkv`, `.avi` och andra format kräver [ffmpeg](https://ffmpeg.org): `brew install ffmpeg`.
+
 ## Systemkrav
 
 - macOS 14 (Sonoma) eller senare
@@ -231,6 +241,7 @@ Sources/SubTitleTransFixer/
 │   ├── ReviewSession.swift       review: issues, fixes, comparison, Claude review
 │   ├── ReviewModels.swift        issues, categories, severity
 │   ├── TextDiff.swift            word-level diff to show changes
+│   ├── Media.swift               video next to the file, ffmpeg, audio analysis, playback
 │   ├── AppSettings.swift         settings + keychain
 │   └── Models.swift              data types
 ├── Localization/                 L(), UI languages and translation tables

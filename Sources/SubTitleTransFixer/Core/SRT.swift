@@ -104,6 +104,23 @@ enum SRT {
         return base + "." + target.code + "." + ext
     }
 
+    /// File name without extension and language code, in lower case.
+    static func baseName(_ fileName: String) -> String {
+        var base = (fileName as NSString).deletingPathExtension.lowercased()
+        let tokens = ["forced", "sdh", "hi", "cc"] + Language.all.flatMap { [$0.code] + $0.aliases }
+        var changed = true
+        while changed {
+            changed = false
+            for t in tokens {
+                for sep in ["_", ".", "-", " "] where base.hasSuffix(sep + t) {
+                    base = String(base.dropLast(t.count + 1))
+                    changed = true
+                }
+            }
+        }
+        return base
+    }
+
     /// Reads text, falling back to common encodings.
     static func readText(at url: URL) throws -> String {
         let data = try Data(contentsOf: url)
