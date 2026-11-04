@@ -85,10 +85,14 @@ klokkeslett som er endret eller borte. Med **Gjennomgå og sammenlign** kontroll
 feiloversettelser, innhold som er utelatt eller lagt til, navn, tall,
 nektelser og tiltaleformer. Vanlig komprimering regnes ikke som en feil.
 
-Hver merknad viser et forslag med fjernet tekst i rødt og ny tekst i grønt.
-Velg **Rett** eller **Ignorer**, eller **Rett alle** for alle tekniske rettinger eller alle
-Claudes forslag. Replikker kan redigeres direkte og tilbakestilles til
-originalen. **Arkiver** skriver den rettede filen.
+### Rette, angre og arkivere
+
+- **Gjennomgå språket med Claude** (eller **Gjennomgå og sammenlign med Claude**) er den store knappen øverst i gjennomgangen.
+- Hver merknad som kan rettes automatisk, har knappen **Rett** og viser endringen: fjernet tekst i rødt, ny tekst i grønt, eller den nye tidskoden. Automatiske rettinger finnes for overlapp, for kort eller for lang visningstid, sluttid før starttid, for høy CPS (replikken vises lenger når det er plass før den neste), feil rekkefølge (sorter etter tid), nummerering, tomme replikker (fjern), lange linjer og mer enn to linjer (bryt om), tagger som ikke lukkes, mellomrom, tegnsetting og konsekvens.
+- Merknader uten automatisk retting har bare **Ignorer** og forteller hvordan du retter selv: rediger teksten direkte, eller klikk på tiden til venstre for en replikk for å endre tidskoden.
+- **Godta alle forslag** bruker alle forslag som vises med gjeldende filter – både Claudes og de automatiske rettingene – i ett trinn.
+- **Angre** og **Gjør om** virker for hver retting, ignorert merknad og redigering. **Tilbakestill alt…** går tilbake til filen slik den var da du åpnet den.
+- Ingenting arkiveres automatisk. **Arkiver** (⌘S) skriver tilbake til filen du åpnet – første gang lagres en kopi av originalen som `<navn>.srt.bak` – og **Arkiver som…** skriver en ny fil. Appen spør før du åpner en annen fil eller avslutter med endringer som ikke er arkivert.
 
 ## Krav
 

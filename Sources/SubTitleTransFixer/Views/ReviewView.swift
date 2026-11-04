@@ -15,6 +15,9 @@ struct ReviewView: View {
             if review.hasFile {
                 ReviewHeader()
                 Divider()
+                ReviewActionBar(acceptCount: review.applicableCount(where: matchesFilter),
+                                acceptAll: { _ = review.applyAll(where: matchesFilter) })
+                Divider()
                 filterBar
                 Divider()
                 cueList
@@ -50,10 +53,13 @@ struct ReviewView: View {
     }
 
     private func filtered(_ all: [ReviewIssue]) -> [ReviewIssue] {
-        all.filter { issue in
-            (severityFilter == nil || issue.severity == severityFilter)
-                && (categoryFilter == nil || issue.category == categoryFilter)
-        }
+        all.filter(matchesFilter)
+    }
+
+    /// The issues shown with the current severity and category filter.
+    private func matchesFilter(_ issue: ReviewIssue) -> Bool {
+        (severityFilter == nil || issue.severity == severityFilter)
+            && (categoryFilter == nil || issue.category == categoryFilter)
     }
 
     // MARK: Parts
@@ -63,42 +69,6 @@ struct ReviewView: View {
         ToolbarItemGroup {
             Button { review.openPanel() } label: { Label(L("Open"), systemImage: "folder") }
                 .help(L("Open an .srt file to review"))
-            if review.isReviewing {
-                Button { review.stop() } label: { Label(L("Stop"), systemImage: "stop.fill") }
-            } else {
-                Button { review.startClaudeReview() } label: {
-                    Label(review.hasSource ? L("Review and compare") : L("Review language"), systemImage: "text.magnifyingglass")
-                }
-                .disabled(!review.hasFile)
-                .help(review.hasSource
-                      ? L("Let Claude review the language and compare the translation with the original")
-                      : L("Let Claude review spelling, grammar, punctuation and wording"))
-            }
-            Menu {
-                Button(L("All technical fixes ({0})", review.autoFixableLocalCount)) {
-                    let n = review.applyAllLocal()
-                    review.statusText = L("Fixed {0} technical issues.", n)
-                }
-                .disabled(review.autoFixableLocalCount == 0)
-                Button(L("All of Claude's suggestions ({0})", review.applicableClaudeCount)) {
-                    let n = review.applyAllClaude()
-                    review.statusText = L("Accepted {0} suggestions from Claude.", n)
-                }
-                .disabled(review.applicableClaudeCount == 0)
-                if let categoryFilter {
-                    Divider()
-                    Button(L("Everything in the category “{0}”", categoryFilter.label)) {
-                        let n = review.applyAllLocal(category: categoryFilter) + review.applyAllClaude(category: categoryFilter)
-                        review.statusText = L("Fixed {0} issues in “{1}”.", n, categoryFilter.label)
-                    }
-                }
-            } label: {
-                Label(L("Fix all"), systemImage: "wand.and.rays")
-            }
-            .disabled(!review.hasFile)
-            Button { review.savePanel() } label: { Label(L("Save"), systemImage: "square.and.arrow.down") }
-                .disabled(!review.hasFile)
-                .help(L("Save the reviewed file"))
         }
     }
 
@@ -151,14 +121,14 @@ struct ReviewView: View {
         let issues = filtered(review.issues)
         let bySeq = Dictionary(grouping: issues, by: \.cueSeq)
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
-        let visible = review.cues.indices.filter { i in
-            let cue = review.cues[i]
+        let visible = review.cues.filter { cue in
             guard showAllCues || bySeq[cue.seq] != nil else { return false }
             return q.isEmpty || cue.text.lowercased().contains(q)
         }
         return List {
-            ForEach(visible, id: \.self) { i in
-                ReviewCueRow(index: i, issues: bySeq[review.cues[i].seq] ?? [])
+            // Identified by seq, so rows stay correct when subtitles are removed or sorted.
+            ForEach(visible, id: \.seq) { cue in
+                ReviewCueRow(cue: cue, issues: bySeq[cue.seq] ?? [])
             }
         }
         .listStyle(.inset(alternatesRowBackgrounds: true))
@@ -201,6 +171,12 @@ struct ReviewView: View {
                 Text(L("{0} changed subtitles", review.changedCount))
                     .font(.callout)
                     .foregroundStyle(.purple)
+            }
+            if review.hasUnsavedChanges {
+                Label(L("Not saved"), systemImage: "circle.fill")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+                    .help(L("The changes are only in the app until you save."))
             }
         }
         .padding(.horizontal, 16)
@@ -255,6 +231,64 @@ private struct ReviewHeader: View {
             }
             .frame(width: 220)
             .help(L("Claude reviews against the same style guide, rules and glossary as when translating"))
+        }
+    }
+}
+
+/// Start Claude's review, accept everything, undo/redo, revert and save.
+private struct ReviewActionBar: View {
+    @Environment(AppModel.self) private var model
+    let acceptCount: Int
+    let acceptAll: () -> Void
+    @State private var confirmRevert = false
+
+    var body: some View {
+        let review = model.review
+        HStack(spacing: 10) {
+            if review.isReviewing {
+                Button(role: .destructive) { review.stop() } label: {
+                    Label(L("Stop the review"), systemImage: "stop.fill")
+                }
+                ProgressView(value: review.progress).frame(width: 140)
+            } else {
+                Button { review.startClaudeReview() } label: {
+                    Label(review.hasSource ? L("Review and compare with Claude") : L("Review language with Claude"),
+                          systemImage: "sparkles")
+                }
+                .buttonStyle(.borderedProminent)
+                .help(review.hasSource
+                      ? L("Let Claude review the language and compare the translation with the original")
+                      : L("Let Claude review spelling, grammar, punctuation and wording"))
+            }
+
+            Button { acceptAll() } label: {
+                Label(L("Accept all suggestions ({0})", acceptCount), systemImage: "checkmark.circle")
+            }
+            .disabled(acceptCount == 0)
+            .help(L("Applies every suggestion shown with the current filter – Claude's and the automatic fixes. Undo reverts them."))
+
+            Spacer()
+
+            Button { review.undo() } label: { Label(L("Undo"), systemImage: "arrow.uturn.backward") }
+                .disabled(!review.canUndo)
+                .help(L("Undo the last change"))
+            Button { review.redo() } label: { Label(L("Redo"), systemImage: "arrow.uturn.forward") }
+                .disabled(!review.canRedo)
+                .help(L("Redo the change"))
+            Button(L("Revert all…")) { confirmRevert = true }
+                .disabled(!review.hasChangesSinceOpen)
+                .help(L("Go back to the file as it was when you opened it"))
+            Button(L("Save As…")) { review.saveAs() }
+            Button { review.save() } label: { Label(L("Save"), systemImage: "square.and.arrow.down") }
+                .help(L("Save to the file you opened (a .bak copy is made the first time)"))
+        }
+        .labelStyle(.titleAndIcon)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .confirmationDialog(L("Revert all changes?"), isPresented: $confirmRevert) {
+            Button(L("Revert all"), role: .destructive) { review.revertAll() }
+        } message: {
+            Text(L("The file goes back to how it was when you opened it. Undo can bring the changes back."))
         }
     }
 }
@@ -314,29 +348,53 @@ private struct CategoryChip: View {
 
 private struct ReviewCueRow: View {
     @Environment(AppModel.self) private var model
-    let index: Int
+    let cue: ReviewCue
     let issues: [ReviewIssue]
+    @State private var editingTime = false
+    @State private var startDraft = ""
+    @State private var endDraft = ""
+    @State private var invalidTime = false
 
     var body: some View {
         let review = model.review
-        let cue = review.cues[index]
+        let seq = cue.seq
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(cue.number).font(.callout.monospacedDigit().weight(.semibold))
-                    Text(cue.startTime).font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                    if editingTime {
+                        timeEditor(seq: cue.seq)
+                    } else {
+                        Button {
+                            let parts = cue.timecode.components(separatedBy: "-->")
+                            startDraft = parts.first?.trimmingCharacters(in: .whitespaces) ?? ""
+                            endDraft = parts.count > 1
+                                ? String(parts[1].trimmingCharacters(in: .whitespaces).split(separator: " ").first ?? "") : ""
+                            invalidTime = false
+                            editingTime = true
+                        } label: {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(cue.startTime)
+                                Text(verbatim: "→ " + cue.endTime)
+                            }
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help(L("Click to edit the timecode"))
+                    }
                     if let cps = cue.cps {
                         Text(verbatim: formatNumber(cps) + " CPS").font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
                     }
                 }
-                .frame(width: 92, alignment: .leading)
+                .frame(width: 110, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 4) {
                     if review.hasSource && review.showSource {
                         SourceText(text: review.sourceTexts[cue.seq], language: review.sourceLanguage)
                     }
                     TextField("", text: Binding(
-                        get: { review.cues[index].text },
+                        get: { review.cues.first { $0.seq == seq }?.text ?? cue.text },
                         set: { review.updateText(seq: cue.seq, text: $0) }
                     ), axis: .vertical)
                     .textFieldStyle(.plain)
@@ -354,10 +412,37 @@ private struct ReviewCueRow: View {
             }
             ForEach(issues) { issue in
                 IssueRow(issue: issue, currentText: cue.text)
-                    .padding(.leading, 104)
+                    .padding(.leading, 122)
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private func timeEditor(seq: Int) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            TextField("", text: $startDraft).onSubmit { commit(seq) }
+            TextField("", text: $endDraft).onSubmit { commit(seq) }
+            HStack(spacing: 6) {
+                Button { commit(seq) } label: { Image(systemName: "checkmark") }
+                    .help(L("Use the new timecode"))
+                Button { editingTime = false } label: { Image(systemName: "xmark") }
+                    .help(L("Cancel"))
+            }
+            .buttonStyle(.borderless)
+            if invalidTime {
+                Text(L("Use the format 00:00:01,000")).font(.caption2).foregroundStyle(.red)
+            }
+        }
+        .font(.caption2.monospacedDigit())
+        .textFieldStyle(.roundedBorder)
+    }
+
+    private func commit(_ seq: Int) {
+        if model.review.updateTimecode(seq: seq, start: startDraft, end: endDraft) {
+            editingTime = false
+        } else {
+            invalidTime = true
+        }
     }
 }
 
@@ -387,6 +472,13 @@ private struct IssueRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 fixPreview
+                if issue.fix == nil {
+                    Text(issue.category == .timing || issue.category == .readingSpeed
+                         ? L("No automatic fix – click the time on the left to edit the timecode, or edit the text.")
+                         : L("No automatic fix – edit the text directly, or ignore the issue."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer(minLength: 8)
             if issue.fix != nil {
@@ -417,6 +509,12 @@ private struct IssueRow: View {
             }
         case .some(.timecode(let tc)):
             Text(L("New timecode: {0}", tc)).font(.caption.monospaced()).foregroundStyle(.secondary)
+        case .some(.deleteCue):
+            Text(L("The subtitle will be removed.")).font(.caption).foregroundStyle(.secondary)
+        case .some(.sortByTime):
+            Text(L("All subtitles will be sorted by start time and renumbered.")).font(.caption).foregroundStyle(.secondary)
+        case .some(.renumber):
+            Text(L("All subtitles will be renumbered 1, 2, 3 …")).font(.caption).foregroundStyle(.secondary)
         default:
             EmptyView()
         }

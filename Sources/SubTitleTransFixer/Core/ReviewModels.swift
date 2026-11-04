@@ -9,12 +9,19 @@ struct ReviewCue: Identifiable, Hashable {
     var timecode: String
     let original: String
     var text: String
+    /// The timecode as it was loaded.
+    let originalTimecode: String
 
     var id: Int { seq }
-    var isChanged: Bool { text != original }
+    var isChanged: Bool { text != original || timecode != originalTimecode }
 
     var startTime: String {
         (timecode.components(separatedBy: "-->").first ?? timecode).trimmingCharacters(in: .whitespaces)
+    }
+    var endTime: String {
+        let parts = timecode.components(separatedBy: "-->")
+        guard parts.count > 1 else { return "" }
+        return String(parts[1].trimmingCharacters(in: .whitespaces).split(separator: " ").first ?? "")
     }
     var duration: Double? { SRT.duration(of: timecode) }
     var cps: Double? {
@@ -118,6 +125,10 @@ enum IssueFix: Hashable {
     case timecode(String)
     /// Renumber all subtitles 1, 2, 3 …
     case renumber
+    /// Sort all subtitles by start time and renumber them.
+    case sortByTime
+    /// Remove the subtitle.
+    case deleteCue
 }
 
 enum IssueOrigin: Hashable {

@@ -84,10 +84,14 @@ som har ändrats eller försvunnit. Med **Granska och jämför** kontrollerar Cl
 också felöversättningar, innehåll som har strukits eller lagts till, namn, tal,
 negationer och tilltal. Normal komprimering räknas inte som fel.
 
-Varje anmärkning visar ett förslag där borttagen text är röd och ny text grön.
-Välj **Åtgärda** eller **Ignorera**, eller **Åtgärda alla** för alla tekniska
-rättningar eller alla Claudes förslag. Repliker kan redigeras direkt och
-återställas till originalet. **Spara** skriver den rättade filen.
+### Rätta, ångra och spara
+
+- **Granska språket med Claude** (eller **Granska och jämför med Claude**) är den stora knappen överst i granskningen.
+- Varje anmärkning som kan rättas automatiskt har knappen **Åtgärda** och visar ändringen: borttagen text i rött, ny text i grönt, eller den nya tidkoden. Automatiska rättningar finns för överlapp, för kort eller för lång visningstid, sluttid före starttid, för hög CPS (repliken visas längre när det finns plats före nästa), fel ordning (sortera efter tid), numrering, tomma repliker (ta bort), långa rader och fler än två rader (radbryt om), taggar som inte stängs, mellanslag, skiljetecken och konsekvens.
+- Anmärkningar utan automatisk rättning har bara **Ignorera** och talar om hur du rättar själv: redigera texten direkt, eller klicka på tiden till vänster om en replik för att ändra tidkoden.
+- **Godta alla förslag** använder alla förslag som visas med aktuellt filter – både Claudes och de automatiska rättningarna – i ett enda steg.
+- **Ångra** och **Gör om** fungerar för varje rättning, ignorerad anmärkning och redigering. **Återställ allt…** går tillbaka till filen som den var när du öppnade den.
+- Ingenting sparas automatiskt. **Spara** (⌘S) skriver tillbaka till filen du öppnade – första gången sparas en kopia av originalet som `<namn>.srt.bak` – och **Spara som…** skriver en ny fil. Appen frågar innan du öppnar en annan fil eller avslutar med osparade ändringar.
 
 ## Systemkrav
 

@@ -92,11 +92,14 @@ ja kellonajat, jotka ovat muuttuneet tai kadonneet. **Tarkista ja vertaa**
 sisällön, nimet, luvut, kieltolauseet ja puhuttelumuodot. Tavanomaista
 tiivistämistä ei pidetä virheenä.
 
-Jokaisessa huomautuksessa näytetään ehdotus, jossa poistettu teksti on
-punaisella ja uusi teksti vihreällä. Valitse **Korjaa** tai **Ohita**, tai
-**Korjaa kaikki** kaikille teknisille korjauksille tai kaikille Clauden
-ehdotuksille. Repliikkejä voi muokata suoraan ja palauttaa alkuperäisiksi.
-**Tallenna** kirjoittaa korjatun tiedoston.
+### Korjaaminen, peruminen ja tallentaminen
+
+- **Tarkista kieli Clauden avulla** (tai **Tarkista ja vertaa Clauden avulla**) on tarkistuksen yläosan iso painike.
+- Jokaisessa automaattisesti korjattavassa huomautuksessa on **Korjaa**-painike, ja se näyttää muutoksen: poistettu teksti punaisella, uusi teksti vihreällä tai uusi aikakoodi. Automaattiset korjaukset ovat käytettävissä päällekkäisyyksille, liian lyhyelle tai pitkälle näyttöajalle, alkuaikaa aiemmalle loppuajalle, liian suurelle CPS:lle (repliikkiä näytetään pidempään, jos ennen seuraavaa on tilaa), väärälle järjestykselle (järjestä ajan mukaan), numeroinnille, tyhjille repliikeille (poista), pitkille riveille ja yli kahdelle riville (rivitä uudelleen), sulkemattomille tageille, välilyönneille, välimerkeille ja johdonmukaisuudelle.
+- Huomautuksissa, joita ei voi korjata automaattisesti, on vain **Ohita**, ja niissä kerrotaan, miten korjaat itse: muokkaa tekstiä suoraan tai muokkaa aikakoodia klikkaamalla repliikin vasemmalla puolella olevaa aikaa.
+- **Hyväksy kaikki ehdotukset** ottaa käyttöön kaikki nykyisellä suodattimella näkyvät ehdotukset – sekä Clauden että automaattiset korjaukset – yhdellä kertaa.
+- **Peru** ja **Tee uudelleen** toimivat jokaiselle korjaukselle, ohitetulle huomautukselle ja muokkaukselle. **Palauta kaikki…** palauttaa tiedoston sellaiseksi kuin se oli avattaessa.
+- Mitään ei tallenneta automaattisesti. **Tallenna** (⌘S) kirjoittaa avaamaasi tiedostoon – ensimmäisellä kerralla alkuperäisestä tallennetaan kopio nimellä `<nimi>.srt.bak` – ja **Tallenna nimellä…** kirjoittaa uuden tiedoston. Sovellus kysyy, ennen kuin avaat toisen tiedoston tai lopetat, jos muutoksia ei ole tallennettu.
 
 ## Vaatimukset
 

@@ -85,10 +85,14 @@ klokkeslæt, der er ændret eller forsvundet. Med **Gennemse og sammenlign** kon
 fejloversættelser, indhold, der er udeladt eller tilføjet, navne, tal,
 nægtelser og tiltaleformer. Normal komprimering betragtes ikke som en fejl.
 
-Hver bemærkning viser et forslag med fjernet tekst i rødt og ny tekst i grønt.
-Vælg **Ret** eller **Ignorer**, eller **Ret alle** for alle tekniske rettelser eller alle
-Claudes forslag. Replikker kan redigeres direkte og nulstilles til
-originalen. **Gem** skriver den rettede fil.
+### Ret, fortryd og gem
+
+- **Gennemse sprog med Claude** (eller **Gennemse og sammenlign med Claude**) er den store knap øverst i gennemgangen.
+- Hver bemærkning, der kan rettes automatisk, har knappen **Ret** og viser ændringen: fjernet tekst i rødt, ny tekst i grønt eller den nye tidskode. Automatiske rettelser findes for overlap, for kort eller for lang visningstid, sluttid før starttid, for høj CPS (replikken vises længere, når der er plads før den næste), forkert rækkefølge (sortér efter tid), nummerering, tomme replikker (fjern), lange linjer og mere end to linjer (ombryd), tags der ikke lukkes, mellemrum, tegnsætning og konsekvens.
+- Bemærkninger uden automatisk rettelse har kun **Ignorer** og fortæller, hvordan du selv retter: rediger teksten direkte, eller klik på tiden til venstre for en replik for at redigere tidskoden.
+- **Godkend alle forslag** anvender alle forslag, der vises med det aktuelle filter – både Claudes og de automatiske rettelser – i ét trin.
+- **Fortryd** og **Annuller fortryd** virker for hver rettelse, ignoreret bemærkning og redigering. **Gendan alt…** går tilbage til filen, som den var, da du åbnede den.
+- Intet gemmes automatisk. **Gem** (⌘S) skriver tilbage til den fil, du åbnede – første gang gemmes en kopi af originalen som `<navn>.srt.bak` – og **Gem som…** skriver en ny fil. Appen spørger, før du åbner en anden fil eller afslutter med ændringer, der ikke er gemt.
 
 ## Krav
 

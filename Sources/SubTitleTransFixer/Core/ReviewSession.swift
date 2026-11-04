@@ -36,6 +36,24 @@ final class ReviewSession {
     /// Has Claude reviewed the whole file?
     var claudeDone = false
 
+    // Undo/redo and saving
+    private struct Snapshot {
+        var cues: [ReviewCue]
+        var claudeIssues: [ReviewIssue]
+        var ignoredKeys: Set<String>
+    }
+    private var undoStack: [Snapshot] = []
+    private var redoStack: [Snapshot] = []
+    @ObservationIgnored private var lastTyping: (seq: Int, time: Date)?
+    /// The subtitles as they were loaded – used by "Revert all".
+    @ObservationIgnored private var initialCues: [ReviewCue] = []
+    /// The subtitles as they were last saved (or loaded).
+    private var savedCues: [ReviewCue] = []
+    /// true when the file was opened from disk (Save then writes back to it).
+    private var isFileBacked = false
+    /// A backup (.bak) is written the first time a file is overwritten.
+    @ObservationIgnored private var backupWritten = false
+
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored let settings: AppSettings
     @ObservationIgnored let library: PromptLibrary
@@ -50,6 +68,11 @@ final class ReviewSession {
     var language: Language { Language.find(languageCode) ?? detection?.language ?? .swedish }
     var profile: SeriesProfile? { library.profile(id: profileID) }
     var changedCount: Int { cues.filter(\.isChanged).count }
+    var hasUnsavedChanges: Bool { hasFile && cues != savedCues }
+    /// Anything changed (including removed or sorted subtitles) since the file was opened?
+    var hasChangesSinceOpen: Bool { cues != initialCues }
+    var canUndo: Bool { !undoStack.isEmpty }
+    var canRedo: Bool { !redoStack.isEmpty }
 
     /// All active (not ignored) issues, sorted by subtitle.
     var issues: [ReviewIssue] {
@@ -65,13 +88,15 @@ final class ReviewSession {
     // MARK: - Loading
 
     func openPanel() {
+        guard confirmDiscardChanges() else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "srt") ?? .plainText]
         panel.message = L("Choose a subtitle file to review")
-        if panel.runModal() == .OK, let url = panel.url { load(url: url) }
+        if panel.runModal() == .OK, let url = panel.url { load(url: url, confirmed: true) }
     }
 
-    func load(url: URL) {
+    func load(url: URL, confirmed: Bool = false) {
+        guard confirmed || confirmDiscardChanges() else { return }
         stop()
         do {
             let parsed = SRT.parse(try SRT.readText(at: url))
@@ -80,7 +105,9 @@ final class ReviewSession {
                 return
             }
             fileURL = url
-            setCues(parsed.map { ReviewCue(seq: $0.seq, number: $0.number, timecode: $0.timecode, original: $0.original, text: $0.original) },
+            isFileBacked = true
+            setCues(parsed.map { ReviewCue(seq: $0.seq, number: $0.number, timecode: $0.timecode, original: $0.original, text: $0.original,
+                                           originalTimecode: $0.timecode) },
                     name: url.lastPathComponent)
             if let original = findOriginal(for: url) {
                 loadSource(url: original)
@@ -95,6 +122,7 @@ final class ReviewSession {
 
     /// Review a translation straight from the translation view.
     func load(translation session: TranslationSession) {
+        guard confirmDiscardChanges() else { return }
         stop()
         fileURL = session.fileURL.map {
             $0.deletingLastPathComponent().appendingPathComponent(
@@ -102,8 +130,10 @@ final class ReviewSession {
         }
         let cues = session.cues.map { c in
             let t = c.translation.isEmpty ? c.original : c.translation
-            return ReviewCue(seq: c.seq, number: c.number, timecode: c.timecode, original: t, text: t)
+            return ReviewCue(seq: c.seq, number: c.number, timecode: c.timecode, original: t, text: t,
+                             originalTimecode: c.timecode)
         }
+        isFileBacked = false
         setCues(cues, name: fileURL?.lastPathComponent ?? L("Translation"))
         languageCode = session.targetLanguage.code
         profileID = session.profileID
@@ -119,6 +149,11 @@ final class ReviewSession {
 
     private func setCues(_ new: [ReviewCue], name: String) {
         cues = new
+        initialCues = new
+        savedCues = new
+        undoStack = []
+        redoStack = []
+        backupWritten = false
         fileName = name
         claudeIssues = []
         ignoredKeys = []
@@ -287,19 +322,83 @@ final class ReviewSession {
         localIssues = found
     }
 
+    // MARK: - Editing (every change can be undone)
+
+    private func checkpoint() {
+        undoStack.append(Snapshot(cues: cues, claudeIssues: claudeIssues, ignoredKeys: ignoredKeys))
+        if undoStack.count > 300 { undoStack.removeFirst() }
+        redoStack = []
+        lastTyping = nil
+    }
+
+    func undo() {
+        guard let previous = undoStack.popLast() else { return }
+        redoStack.append(Snapshot(cues: cues, claudeIssues: claudeIssues, ignoredKeys: ignoredKeys))
+        restore(previous)
+        statusText = L("Undid the last change.")
+    }
+
+    func redo() {
+        guard let next = redoStack.popLast() else { return }
+        undoStack.append(Snapshot(cues: cues, claudeIssues: claudeIssues, ignoredKeys: ignoredKeys))
+        restore(next)
+        statusText = L("Redid the change.")
+    }
+
+    private func restore(_ s: Snapshot) {
+        cues = s.cues
+        claudeIssues = s.claudeIssues
+        ignoredKeys = s.ignoredKeys
+        lastTyping = nil
+        recheck()
+    }
+
+    /// Goes back to the file exactly as it was opened.
+    func revertAll() {
+        guard cues != initialCues else { return }
+        checkpoint()
+        cues = initialCues
+        recheck()
+        statusText = L("All changes were reverted. Undo brings them back.")
+    }
+
     func updateText(seq: Int, text: String) {
-        guard let i = index(of: seq) else { return }
+        guard let i = index(of: seq), cues[i].text != text else { return }
+        // Typing in the same subtitle counts as one change, so Undo doesn't go letter by letter.
+        if let last = lastTyping, last.seq == seq, Date().timeIntervalSince(last.time) < 2 {
+            lastTyping = (seq, Date())
+        } else {
+            checkpoint()
+            lastTyping = (seq, Date())
+        }
         cues[i].text = text
         recheck()
     }
 
+    /// Sets a new start and end time. Returns false if a time cannot be parsed.
+    @discardableResult
+    func updateTimecode(seq: Int, start: String, end: String) -> Bool {
+        guard let i = index(of: seq),
+              let t = SRT.times(of: "\(start.trimmingCharacters(in: .whitespaces)) --> \(end.trimmingCharacters(in: .whitespaces))")
+        else { return false }
+        let new = SRT.format(ms: t.start) + " --> " + SRT.format(ms: t.end)
+        guard new != cues[i].timecode else { return true }
+        checkpoint()
+        cues[i].timecode = new
+        recheck()
+        return true
+    }
+
     func revert(seq: Int) {
-        guard let i = index(of: seq) else { return }
-        cues[i].text = cues[i].original
+        guard let i = index(of: seq), let original = initialCues.first(where: { $0.seq == seq }) else { return }
+        checkpoint()
+        cues[i].text = original.text
+        cues[i].timecode = original.timecode
         recheck()
     }
 
     func ignore(_ issue: ReviewIssue) {
+        checkpoint()
         if issue.origin == .claude {
             claudeIssues.removeAll { $0.id == issue.id }
         } else {
@@ -318,13 +417,21 @@ final class ReviewSession {
 
     func apply(_ issue: ReviewIssue) {
         guard let fix = issue.fix, canApply(issue) else { return }
-        perform(fix, seq: issue.cueSeq)
-        if issue.origin == .claude {
-            // Other Claude suggestions for the same subtitle are based on the old text
-            // and are then shown as outdated (see canApply).
-            claudeIssues.removeAll { $0.id == issue.id }
-        }
+        checkpoint()
+        applyWithoutCheckpoint(issue, fix: fix)
         recheck()
+    }
+
+    private func applyWithoutCheckpoint(_ issue: ReviewIssue, fix: IssueFix) {
+        perform(fix, seq: issue.cueSeq)
+        guard issue.origin == .claude else { return }
+        claudeIssues.removeAll { $0.id == issue.id }
+        // Claude puts all corrections of a subtitle in every "fixed", so other
+        // issues on the same subtitle are now done as well.
+        if let i = index(of: issue.cueSeq) {
+            let now = cues[i].text
+            claudeIssues.removeAll { $0.cueSeq == issue.cueSeq && $0.fix == .text(now) }
+        }
     }
 
     private func perform(_ fix: IssueFix, seq: Int) {
@@ -334,50 +441,55 @@ final class ReviewSession {
         case .timecode(let tc):
             if let i = index(of: seq) { cues[i].timecode = tc }
         case .renumber:
-            for i in cues.indices { cues[i].number = String(cues[i].seq) }
+            for i in cues.indices { cues[i].number = String(i + 1) }
+        case .sortByTime:
+            cues.sort { (SRT.times(of: $0.timecode)?.start ?? Int.max) < (SRT.times(of: $1.timecode)?.start ?? Int.max) }
+            for i in cues.indices { cues[i].number = String(i + 1) }
+        case .deleteCue:
+            cues.removeAll { $0.seq == seq }
+            claudeIssues.removeAll { $0.cueSeq == seq }
         }
     }
 
-    /// Fixes every local issue that has an automatic fix.
-    /// Runs in several passes since one fix can change the conditions for the next.
-    func applyAllLocal(category: IssueCategory? = nil) -> Int {
+    /// Applies every suggestion that matches `filter` – Claude's suggestions and the
+    /// automatic technical fixes. One single step for Undo. Returns how many were applied.
+    @discardableResult
+    func applyAll(where filter: (ReviewIssue) -> Bool) -> Int {
+        let candidates = issues.filter { filter($0) && $0.fix != nil && canApply($0) }
+        guard !candidates.isEmpty else { return 0 }
+        checkpoint()
         var applied = 0
-        for _ in 0..<6 {
-            var touched = Set<Int>()
-            var didSomething = false
-            for issue in localIssues where issue.fix != nil && !ignoredKeys.contains(issue.key)
-                && (category == nil || issue.category == category) && !touched.contains(issue.cueSeq) {
-                perform(issue.fix!, seq: issue.cueSeq)
-                touched.insert(issue.cueSeq)
-                applied += 1
-                didSomething = true
-            }
-            recheck()
-            if !didSomething { break }
-        }
-        return applied
-    }
-
-    /// Accepts all of Claude's suggestions (optionally only in one category).
-    func applyAllClaude(category: IssueCategory? = nil) -> Int {
-        var applied = 0
-        for issue in claudeIssues where category == nil || issue.category == category {
-            if canApply(issue) {
-                perform(issue.fix!, seq: issue.cueSeq)
-                claudeIssues.removeAll { $0.id == issue.id }
+        // Claude's suggestions first: they replace whole subtitles.
+        for issue in claudeIssues where !ignoredKeys.contains(issue.key) && filter(issue) && canApply(issue) {
+            if let fix = issue.fix, claudeIssues.contains(where: { $0.id == issue.id }) {
+                applyWithoutCheckpoint(issue, fix: fix)
                 applied += 1
             }
         }
         recheck()
+        // Then the technical fixes, in several passes since one fix can change the next.
+        for _ in 0..<6 {
+            var touched = Set<Int>()
+            var didSomething = false
+            for issue in localIssues where issue.fix != nil && !ignoredKeys.contains(issue.key)
+                && filter(issue) && !touched.contains(issue.cueSeq) {
+                perform(issue.fix!, seq: issue.cueSeq)
+                touched.insert(issue.cueSeq)
+                applied += 1
+                didSomething = true
+                // These change every subtitle – recheck before anything else.
+                if issue.fix == .renumber || issue.fix == .sortByTime { break }
+            }
+            recheck()
+            if !didSomething { break }
+        }
+        statusText = L("Applied {0} suggestions. Undo reverts them.", applied)
         return applied
     }
 
-    var autoFixableLocalCount: Int {
-        localIssues.filter { $0.fix != nil && !ignoredKeys.contains($0.key) }.count
-    }
-
-    var applicableClaudeCount: Int {
-        claudeIssues.filter { canApply($0) }.count
+    /// How many suggestions `applyAll(where:)` would apply.
+    func applicableCount(where filter: (ReviewIssue) -> Bool) -> Int {
+        issues.filter { filter($0) && $0.fix != nil && canApply($0) }.count
     }
 
     private func index(of seq: Int) -> Int? {
@@ -482,20 +594,65 @@ final class ReviewSession {
 
     // MARK: - Saving
 
-    func savePanel() {
-        guard hasFile else { return }
+    /// Saves to the file that was opened (a .bak copy is made the first time),
+    /// or asks for a file name when there is none.
+    @discardableResult
+    func save() -> Bool {
+        guard hasFile else { return false }
+        guard isFileBacked, let url = fileURL else { return saveAs() }
+        let fm = FileManager.default
+        if !backupWritten, fm.fileExists(atPath: url.path) {
+            let backup = url.appendingPathExtension("bak")
+            try? fm.removeItem(at: backup)
+            try? fm.copyItem(at: url, to: backup)
+            backupWritten = true
+        }
+        return write(to: url)
+    }
+
+    @discardableResult
+    func saveAs() -> Bool {
+        guard hasFile else { return false }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "srt") ?? .plainText]
         panel.nameFieldStringValue = fileURL?.lastPathComponent ?? fileName
         panel.directoryURL = fileURL?.deletingLastPathComponent()
         panel.message = L("Save the reviewed subtitles")
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard panel.runModal() == .OK, let url = panel.url else { return false }
+        guard write(to: url) else { return false }
+        fileURL = url
+        fileName = url.lastPathComponent
+        isFileBacked = true
+        backupWritten = true // the user chose this file; no backup of what was there
+        return true
+    }
+
+    private func write(to url: URL) -> Bool {
         let out = cues.map { "\($0.number)\n\($0.timecode)\n\($0.text)" }.joined(separator: "\n\n") + "\n"
         do {
             try out.write(to: url, atomically: true, encoding: .utf8)
+            savedCues = cues
             statusText = L("✓ Saved {0} subtitles ({1} changed) to {2}.", cues.count, changedCount, url.lastPathComponent)
+            return true
         } catch {
             errorMessage = L("Could not save: {0}", error.localizedDescription)
+            return false
+        }
+    }
+
+    /// Asks what to do with unsaved changes. Returns true when it is fine to continue.
+    func confirmDiscardChanges() -> Bool {
+        guard hasUnsavedChanges else { return true }
+        let alert = NSAlert()
+        alert.messageText = L("Do you want to save the changes to “{0}”?", fileName)
+        alert.informativeText = L("Your changes will be lost if you don't save them.")
+        alert.addButton(withTitle: L("Save"))
+        alert.addButton(withTitle: L("Cancel"))
+        alert.addButton(withTitle: L("Don't Save"))
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: return save()
+        case .alertThirdButtonReturn: return true
+        default: return false
         }
     }
 }

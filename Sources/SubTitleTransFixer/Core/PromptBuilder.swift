@@ -185,8 +185,11 @@ enum PromptBuilder {
 
         var rules = """
         REVIEW RULES
-        - For every issue, give the whole subtitle corrected in "fixed". Change only what the
-          issue is about. Keep line breaks (\\n), <i> tags and dialogue dashes exactly as they are.
+        - For every issue, give the whole subtitle corrected in "fixed". Keep line breaks (\\n),
+          <i> tags and dialogue dashes exactly as they are.
+        - When a subtitle has several issues, report each one separately, but let every
+          "fixed" for that subtitle contain ALL of the corrections (the same text for all of
+          them), so that accepting any one of them fixes the whole subtitle.
         - Do not report line length, timecodes or reading speed – they are checked separately.
         - Consistency: the same name or term must be spelled the same way throughout the file
           and must match the work profile's glossary.

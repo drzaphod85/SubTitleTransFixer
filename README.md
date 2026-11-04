@@ -85,10 +85,28 @@ times that changed or disappeared. With **Review and compare**, Claude also
 checks mistranslations, content that was dropped or added, names, numbers,
 negations and forms of address. Normal condensation is not treated as an error.
 
-Every issue shows a suggestion with removed text in red and new text in green.
-Choose **Fix** or **Ignore**, or **Fix all** for all technical fixes or all of
-Claude's suggestions. Subtitles can be edited directly and reset to the
-original. **Save** writes the corrected file.
+### Fixing, undoing and saving
+
+- **Review language with Claude** (or **Review and compare with Claude**) is the
+  big button at the top of the review.
+- Every issue that can be fixed automatically has a **Fix** button and shows the
+  change: removed text in red, new text in green, or the new timecode. Automatic
+  fixes exist for overlaps, too short or too long display times, an end time
+  before the start time, too high CPS (the subtitle is shown longer when there is
+  room before the next one), wrong order (sort by time), numbering, empty
+  subtitles (remove), long lines and more than two lines (re-wrap), unclosed tags,
+  spaces, punctuation and consistency.
+- Issues without an automatic fix only have **Ignore**, and say how to fix them
+  yourself: edit the text directly, or click the time to the left of a subtitle
+  to edit its timecode.
+- **Accept all suggestions** applies every suggestion shown with the current
+  filter – both Claude's and the automatic fixes – in one step.
+- **Undo** and **Redo** work for every fix, ignored issue and edit.
+  **Revert all…** goes back to the file as it was when you opened it.
+- Nothing is saved automatically. **Save** (⌘S) writes back to the file you
+  opened – the first time, a copy of the original is kept as `<name>.srt.bak` –
+  and **Save As…** writes a new file. The app asks before you open another file
+  or quit with unsaved changes.
 
 ## Requirements
 

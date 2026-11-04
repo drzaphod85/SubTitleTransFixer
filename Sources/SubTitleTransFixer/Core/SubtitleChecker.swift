@@ -17,7 +17,8 @@ enum SubtitleChecker {
         issues += numbering(cues)
         issues += timing(cues, o)
         for (i, cue) in cues.enumerated() {
-            issues += text(cue, previous: i > 0 ? cues[i - 1] : nil, o)
+            let nextStart = i + 1 < cues.count ? SRT.times(of: cues[i + 1].timecode)?.start : nil
+            issues += text(cue, previous: i > 0 ? cues[i - 1] : nil, nextStart: nextStart, o)
         }
         issues += ellipsisConsistency(cues)
         issues += dashConsistency(cues)
@@ -27,9 +28,11 @@ enum SubtitleChecker {
     // MARK: - Numbering
 
     private static func numbering(_ cues: [ReviewCue]) -> [ReviewIssue] {
-        guard let first = cues.first(where: { $0.number != String($0.seq) }) else { return [] }
+        // Compare with the position in the file, since subtitles can be removed or sorted.
+        guard let position = cues.indices.first(where: { cues[$0].number != String($0 + 1) }) else { return [] }
+        let first = cues[position]
         let dupes = Dictionary(grouping: cues, by: \.number).filter { $0.value.count > 1 }.count
-        var msg = L("The numbering is off from subtitle {0} (it says “{1}”).", first.seq, first.number)
+        var msg = L("The numbering is off from subtitle {0} (it says “{1}”).", position + 1, first.number)
         if dupes > 0 { msg += " " + L("{0} numbers occur more than once.", dupes) }
         msg += " " + L("Renumber all subtitles 1, 2, 3 …")
         return [ReviewIssue(cueSeq: first.seq, category: .numbering, severity: dupes > 0 ? .warning : .suggestion,
@@ -47,21 +50,35 @@ enum SubtitleChecker {
                 continue
             }
             let dur = Double(t.end - t.start) / 1000
+            let nextStart = i + 1 < cues.count ? SRT.times(of: cues[i + 1].timecode)?.start : nil
+            // How long the subtitle needs to be readable at the CPS target.
+            let chars = stripTags(cue.text).replacingOccurrences(of: "\n", with: "").count
+            let needed = max(Int(o.minDuration * 1000), Int(Double(chars) / o.maxCPS * 1000))
             if t.end <= t.start {
+                let fix = extendedEnd(start: t.start, wanted: t.start + needed, currentEnd: t.start, nextStart: nextStart, o)
+                    .map { IssueFix.timecode(SRT.replacingEnd(in: cue.timecode, with: $0)) }
                 issues.append(ReviewIssue(cueSeq: cue.seq, category: .timing, severity: .error,
-                                          message: L("The end time is before or at the start time.")))
+                                          message: L("The end time is before or at the start time."), fix: fix))
             } else if dur < o.minDuration {
+                let fix = extendedEnd(start: t.start, wanted: t.start + needed, currentEnd: t.end, nextStart: nextStart, o)
+                    .map { IssueFix.timecode(SRT.replacingEnd(in: cue.timecode, with: $0)) }
                 issues.append(ReviewIssue(cueSeq: cue.seq, category: .timing, severity: .warning,
-                                          message: L("Shown for only {0} s – hard to read in time (at least {1} s recommended).", formatNumber(dur, decimals: 2), formatNumber(o.minDuration))))
+                                          message: L("Shown for only {0} s – hard to read in time (at least {1} s recommended).", formatNumber(dur, decimals: 2), formatNumber(o.minDuration)),
+                                          fix: fix))
             } else if dur > o.maxDuration {
+                // Shorten to the maximum, but never below what the text needs.
+                let newEnd = t.start + max(Int(o.maxDuration * 1000), needed)
+                let fix: IssueFix? = newEnd < t.end - 50 ? .timecode(SRT.replacingEnd(in: cue.timecode, with: newEnd)) : nil
                 issues.append(ReviewIssue(cueSeq: cue.seq, category: .timing, severity: .suggestion,
-                                          message: L("Shown for {0} s – unusually long (over {1} s).", formatNumber(dur), formatNumber(o.maxDuration, decimals: 0))))
+                                          message: L("Shown for {0} s – unusually long (over {1} s).", formatNumber(dur), formatNumber(o.maxDuration, decimals: 0)),
+                                          fix: fix))
             }
 
             if i + 1 < cues.count, let next = SRT.times(of: cues[i + 1].timecode) {
                 if next.start < t.start {
                     issues.append(ReviewIssue(cueSeq: cues[i + 1].seq, category: .timing, severity: .error,
-                                              message: L("The subtitle starts before the previous one – wrong order.")))
+                                              message: L("The subtitle starts before the previous one – wrong order."),
+                                              fix: .sortByTime))
                 } else if next.start < t.end {
                     let newEnd = next.start - o.overlapGap
                     let fix: IssueFix? = newEnd - t.start >= 300
@@ -74,9 +91,17 @@ enum SubtitleChecker {
         return issues
     }
 
+    /// A later end time, as close to `wanted` as possible without running into
+    /// the next subtitle. nil if the end cannot be moved noticeably.
+    private static func extendedEnd(start: Int, wanted: Int, currentEnd: Int, nextStart: Int?, _ o: Options) -> Int? {
+        var end = wanted
+        if let nextStart { end = min(end, nextStart - o.overlapGap) }
+        return end > max(currentEnd, start) + 50 ? end : nil
+    }
+
     // MARK: - Text
 
-    private static func text(_ cue: ReviewCue, previous: ReviewCue?, _ o: Options) -> [ReviewIssue] {
+    private static func text(_ cue: ReviewCue, previous: ReviewCue?, nextStart: Int?, _ o: Options) -> [ReviewIssue] {
         var issues: [ReviewIssue] = []
         let text = cue.text
         func add(_ cat: IssueCategory, _ sev: IssueSeverity, _ msg: String, _ fixed: String? = nil) {
@@ -86,27 +111,37 @@ enum SubtitleChecker {
 
         let visible = stripTags(text).trimmingCharacters(in: .whitespacesAndNewlines)
         if visible.isEmpty {
-            add(.formatting, .error, L("The subtitle is empty."))
+            issues.append(ReviewIssue(cueSeq: cue.seq, category: .formatting, severity: .error,
+                                      message: L("The subtitle is empty."), fix: .deleteCue))
             return issues
         }
 
         let lines = text.components(separatedBy: "\n")
 
         // Number of lines and line length
-        if lines.count > 2 {
-            add(.length, .warning, L("{0} lines – at most 2 lines per subtitle are recommended.", lines.count))
-        }
+        // Number of lines and line length – fixed by re-wrapping when the text fits on two lines
         let longest = lines.map { stripTags($0).count }.max() ?? 0
-        if longest > o.maxLineLength {
-            add(.length, .warning, L("A line has {0} characters (max {1}).", longest, o.maxLineLength))
+        let rewrapped = (lines.count > 2 || longest > o.maxLineLength) ? rewrap(text, maxLength: o.maxLineLength) : nil
+        if lines.count > 2 {
+            add(.length, .warning, L("{0} lines – at most 2 lines per subtitle are recommended.", lines.count), rewrapped)
+        } else if longest > o.maxLineLength {
+            add(.length, .warning, L("A line has {0} characters (max {1}).", longest, o.maxLineLength), rewrapped)
         }
 
-        // Reading speed
-        if let cps = cue.cps {
+        // Reading speed – fixed by showing the subtitle longer when there is room
+        if let cps = cue.cps, let t = SRT.times(of: cue.timecode) {
+            let chars = visible.replacingOccurrences(of: "\n", with: "").count
+            let wanted = t.start + Int(Double(chars) / o.maxCPS * 1000)
+            let fix = extendedEnd(start: t.start, wanted: wanted, currentEnd: t.end, nextStart: nextStart, o)
+                .map { IssueFix.timecode(SRT.replacingEnd(in: cue.timecode, with: $0)) }
             if cps > o.maxCPS + 3 {
-                add(.readingSpeed, .warning, L("{0} characters/second – too fast to read (target ≤ {1}).", formatNumber(cps), formatNumber(o.maxCPS, decimals: 0)))
+                issues.append(ReviewIssue(cueSeq: cue.seq, category: .readingSpeed, severity: .warning,
+                                          message: L("{0} characters/second – too fast to read (target ≤ {1}).", formatNumber(cps), formatNumber(o.maxCPS, decimals: 0)),
+                                          fix: fix))
             } else if cps > o.maxCPS {
-                add(.readingSpeed, .suggestion, L("{0} characters/second – slightly over the target of {1}.", formatNumber(cps), formatNumber(o.maxCPS, decimals: 0)))
+                issues.append(ReviewIssue(cueSeq: cue.seq, category: .readingSpeed, severity: .suggestion,
+                                          message: L("{0} characters/second – slightly over the target of {1}.", formatNumber(cps), formatNumber(o.maxCPS, decimals: 0)),
+                                          fix: fix))
             }
         }
 
@@ -158,7 +193,11 @@ enum SubtitleChecker {
         for tag in ["i", "b", "u"] {
             let open = count(text, "(?i)<\(tag)>"), close = count(text, "(?i)</\(tag)>")
             if open != close {
-                add(.formatting, .error, L("Unbalanced <{0}> tags ({1} opening, {2} closing).", tag, open, close))
+                // Add the missing closing tags at the end, or the missing opening tags at the start.
+                let fixed = open > close
+                    ? text + String(repeating: "</\(tag)>", count: open - close)
+                    : String(repeating: "<\(tag)>", count: close - open) + text
+                add(.formatting, .error, L("Unbalanced <{0}> tags ({1} opening, {2} closing).", tag, open, close), fixed)
             }
         }
         if text.filter({ $0 == "(" }).count != text.filter({ $0 == ")" }).count {
@@ -318,6 +357,54 @@ enum SubtitleChecker {
             guard digits.count >= 2, seen.insert(String(digits)).inserted else { return nil }
             return String(digits)
         }
+    }
+
+    // MARK: - Re-wrapping
+
+    /// Splits a subtitle into at most two balanced lines of at most `maxLength`
+    /// characters. Dialogue (lines starting with a dash) and text with tags other
+    /// than one surrounding <i>…</i> are left alone. nil if it cannot be done.
+    static func rewrap(_ text: String, maxLength: Int) -> String? {
+        let lines = text.components(separatedBy: "\n")
+        if lines.count > 1, lines.allSatisfy({ dashStyle(of: $0) != nil }) { return nil }
+
+        var inner = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var italic = false
+        let lower = inner.lowercased()
+        let wholeItalic = lower.hasPrefix("<i>") && lower.hasSuffix("</i>") && count(inner, "(?i)</?i>") == 2
+        let everyLineItalic = lines.allSatisfy {
+            let l = $0.trimmingCharacters(in: .whitespaces).lowercased()
+            return l.hasPrefix("<i>") && l.hasSuffix("</i>")
+        }
+        if wholeItalic || everyLineItalic {
+            italic = true
+            inner = inner.replacingOccurrences(of: "(?i)</?i>", with: "", options: .regularExpression)
+        }
+        guard !inner.contains("<") else { return nil }
+
+        let words = inner.replacingOccurrences(of: "\n", with: " ")
+            .split(separator: " ").map(String.init)
+        guard !words.isEmpty else { return nil }
+        let single = words.joined(separator: " ")
+
+        var result: String?
+        if single.count <= maxLength {
+            result = single
+        } else {
+            // Try every split point; prefer balanced lines and a break after punctuation.
+            var best: (score: Double, text: String)?
+            for i in 1..<words.count {
+                let a = words[..<i].joined(separator: " "), b = words[i...].joined(separator: " ")
+                guard a.count <= maxLength, b.count <= maxLength else { continue }
+                var score = Double(abs(a.count - b.count))
+                if let last = a.last, ",.;:!?–".contains(last) { score -= 8 }
+                if best == nil || score < best!.score { best = (score, a + "\n" + b) }
+            }
+            result = best?.text
+        }
+        guard var r = result else { return nil }
+        if italic { r = r.components(separatedBy: "\n").map { "<i>\($0)</i>" }.joined(separator: "\n") }
+        return r == text ? nil : r
     }
 
     // MARK: - Helpers

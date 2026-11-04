@@ -85,10 +85,14 @@ tíma sem hafa breyst eða horfið. Með **Yfirfara og bera saman** athugar Clau
 rangþýðingar, efni sem var fellt út eða bætt við, nöfn, tölur,
 neitanir og ávarp. Venjuleg stytting er ekki talin villa.
 
-Hver athugasemd sýnir tillögu þar sem fjarlægður texti er rauður og nýr texti grænn.
-Veldu **Laga** eða **Hunsa**, eða **Laga allt** fyrir allar tæknilegar lagfæringar eða allar
-tillögur Claude. Hægt er að breyta skjátextum beint og færa þá aftur í upprunalegt
-horf. **Vista** skrifar leiðréttu skrána.
+### Laga, afturkalla og vista
+
+- **Yfirfara málfar með Claude** (eða **Yfirfara og bera saman með Claude**) er stóri hnappurinn efst í yfirferðinni.
+- Hver athugasemd sem hægt er að laga sjálfvirkt er með hnappinn **Laga** og sýnir breytinguna: fjarlægður texti í rauðu, nýr texti í grænu, eða nýi tímakóðinn. Sjálfvirkar lagfæringar eru til fyrir skörun, of stuttan eða of langan birtingartíma, lokatíma á undan upphafstíma, of háan CPS (skjátextinn er sýndur lengur ef pláss er á undan þeim næsta), ranga röð (raða eftir tíma), númeringu, tóma skjátexta (eyða), langar línur og fleiri en tvær línur (endurbrjóta), ólokuð merki, bil, greinarmerki og samræmi.
+- Athugasemdir án sjálfvirkrar lagfæringar eru aðeins með **Hunsa** og segja hvernig þú lagar sjálf(ur): breyttu textanum beint, eða smelltu á tímann vinstra megin við skjátexta til að breyta tímakóðanum.
+- **Samþykkja allar tillögur** notar allar tillögur sem sjást með núverandi síu – bæði frá Claude og sjálfvirkar lagfæringar – í einu skrefi.
+- **Afturkalla** og **Endurgera** virka fyrir hverja lagfæringu, hunsaða athugasemd og breytingu. **Afturkalla allt…** færir skrána aftur í það horf sem hún var í þegar þú opnaðir hana.
+- Ekkert er vistað sjálfvirkt. **Vista** (⌘S) skrifar aftur í skrána sem þú opnaðir – í fyrsta skiptið er afrit af frumskránni geymt sem `<heiti>.srt.bak` – og **Vista sem…** skrifar nýja skrá. Forritið spyr áður en þú opnar aðra skrá eða hættir með óvistaðar breytingar.
 
 ## Kröfur
 

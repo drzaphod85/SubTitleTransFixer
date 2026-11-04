@@ -75,6 +75,7 @@ struct SubTitleTransFixerApp: App {
             ContentView()
                 .environment(model)
                 .frame(minWidth: 1050, minHeight: 650)
+                .onAppear { appDelegate.model = model }
                 // Rebuild the views when the UI language changes.
                 .id(model.settings.appLanguage)
         }
@@ -82,9 +83,12 @@ struct SubTitleTransFixerApp: App {
             CommandGroup(replacing: .newItem) {
                 Button(L("Open Subtitles…")) { model.session.openPanel() }
                     .keyboardShortcut("o")
-                Button(L("Save Translation…")) { model.session.savePanel() }
-                    .keyboardShortcut("s")
-                    .disabled(!model.session.hasFile)
+                // ⌘S saves what is being worked on: the reviewed file or the translation.
+                Button(model.selection == .review ? L("Save") : L("Save Translation…")) {
+                    if model.selection == .review { model.review.save() } else { model.session.savePanel() }
+                }
+                .keyboardShortcut("s")
+                .disabled(model.selection == .review ? !model.review.hasFile : !model.session.hasFile)
             }
             CommandGroup(after: .newItem) {
                 Divider()
@@ -127,8 +131,17 @@ struct SubTitleTransFixerApp: App {
     }
 }
 
-/// Makes the app behave like a normal app even when started with `swift run`.
+/// Makes the app behave like a normal app even when started with `swift run`,
+/// and asks about unsaved review changes before quitting.
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    weak var model: AppModel?
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let review = model?.review else { return .terminateNow }
+        return review.confirmDiscardChanges() ? .terminateNow : .terminateCancel
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
