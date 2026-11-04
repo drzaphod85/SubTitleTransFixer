@@ -186,7 +186,8 @@ enum LanguageDetector {
         return nil
     }
 
-    /// Detects the language of the subtitle text with macOS NaturalLanguage.
+    /// Detects the language of the subtitle text with macOS NaturalLanguage,
+    /// a dedicated check for Swedish/Danish/Norwegian, and the file name.
     static func detect(texts: [String], fileName: String) -> LanguageDetection? {
         let sample = texts.prefix(400)
             .map(stripMarkup)
@@ -195,26 +196,81 @@ enum LanguageDetector {
 
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(sample)
-        let hypotheses = recognizer.languageHypotheses(withMaximum: 3)
+        let hypotheses = recognizer.languageHypotheses(withMaximum: 5)
             .compactMap { pair -> (Language, Double)? in
                 guard let lang = Language.find(pair.key.rawValue) else { return nil }
                 return (lang, pair.value)
             }
             .sorted { $0.1 > $1.1 }
 
-        if let top = hypotheses.first, top.1 >= 0.6 {
-            let agrees = fileHint == top.0
-            return LanguageDetection(language: top.0, confidence: top.1, basis: agrees ? .textAndFileName : .text)
+        // NaturalLanguage often confuses the Scandinavian languages – especially when
+        // a Swedish translation of a Danish series is full of Danish names. The
+        // letters ä/ö versus æ/ø and a few marker words settle it far more reliably.
+        let scandinavianCodes: Set<String> = ["sv", "da", "no"]
+        let involvesScandinavian = hypotheses.prefix(3).contains { scandinavianCodes.contains($0.0.code) }
+            || fileHint.map { scandinavianCodes.contains($0.code) } == true
+        let textGuess: (Language, Double)?
+        if involvesScandinavian, let s = scandinavian(sample) {
+            textGuess = s
+        } else {
+            textGuess = hypotheses.first
+        }
+
+        guard let text = textGuess else {
+            return fileHint.map { LanguageDetection(language: $0, confidence: 0.6, basis: .fileName) }
         }
         if let fileHint {
-            // Uncertain text – trust the file name, especially if the text points the same way.
-            let p = hypotheses.first { $0.0 == fileHint }?.1 ?? 0
-            return LanguageDetection(language: fileHint, confidence: max(p, 0.6), basis: .fileName)
+            if fileHint == text.0 {
+                return LanguageDetection(language: text.0, confidence: max(text.1, 0.9), basis: .textAndFileName)
+            }
+            // A language code in the file name is strong evidence. It wins unless the
+            // text clearly says otherwise (e.g. a file that was named wrongly).
+            let hintP = hypotheses.first { $0.0 == fileHint }?.1 ?? 0
+            if text.1 < 0.9 || hintP >= 0.2 {
+                return LanguageDetection(language: fileHint, confidence: max(hintP, 0.6), basis: .fileName)
+            }
         }
-        if let top = hypotheses.first {
-            return LanguageDetection(language: top.0, confidence: top.1, basis: .text)
+        return LanguageDetection(language: text.0, confidence: text.1, basis: .text)
+    }
+
+    /// Swedish vs Danish/Norwegian from ä/ö versus æ/ø, then Danish vs Norwegian
+    /// from marker words. nil when the text gives no clear answer.
+    static func scandinavian(_ text: String) -> (Language, Double)? {
+        let lower = text.lowercased()
+        var swedishLetters = 0, danoNorwegianLetters = 0
+        for ch in lower {
+            switch ch {
+            case "ä", "ö": swedishLetters += 1
+            case "æ", "ø": danoNorwegianLetters += 1
+            default: break
+            }
+        }
+        let total = swedishLetters + danoNorwegianLetters
+        // Few special letters: without any ä/ö the marker words may still tell Danish from Norwegian.
+        guard total >= 8 else { return swedishLetters == 0 ? danishOrNorwegian(lower) : nil }
+        let swedishShare = Double(swedishLetters) / Double(total)
+        if swedishShare >= 0.75 {
+            return (Language.swedish, min(0.97, 0.7 + 0.27 * swedishShare))
+        }
+        if swedishShare <= 0.25 {
+            return danishOrNorwegian(lower)
         }
         return nil
+    }
+
+    private static func danishOrNorwegian(_ lower: String) -> (Language, Double)? {
+        let norwegian: Set<String> = ["hva", "noe", "noen", "ble", "mye", "meg", "deg", "seg", "nå", "ikkje", "kjenner", "gjøre", "veldig"]
+        let danish: Set<String> = ["hvad", "noget", "nogen", "blev", "meget", "mig", "dig", "sig", "nu", "kender", "gøre", "rigtig"]
+        var n = 0, d = 0
+        for word in lower.split(whereSeparator: { !$0.isLetter }) {
+            let w = String(word)
+            if norwegian.contains(w) { n += 1 }
+            if danish.contains(w) { d += 1 }
+        }
+        guard n + d >= 3, n != d,
+              let lang = Language.find(n > d ? "no" : "da") else { return nil }
+        let margin = Double(abs(n - d)) / Double(n + d)
+        return (lang, min(0.95, 0.6 + 0.35 * margin))
     }
 
     private static func stripMarkup(_ s: String) -> String {
