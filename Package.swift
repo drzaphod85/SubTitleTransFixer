@@ -2,12 +2,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "Undertextaren",
+    name: "SubTitleTransFixer",
+    defaultLocalization: "en",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "Undertextaren",
-            path: "Sources/Undertextaren"
+            name: "SubTitleTransFixer",
+            path: "Sources/SubTitleTransFixer"
         )
     ]
 )

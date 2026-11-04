@@ -1,229 +1,236 @@
-# Undertextaren
+# SubTitle TransFixer
 
-En Mac-app (Swift + SwiftUI) som översätter `.srt`-undertexter mellan språk
-med Claude. Från början engelska → svenska, nu valfritt språkpar. Den bygger på samma logik och stilguide som
-skriptet `translate-srt.mjs`, men lägger till:
+A Mac app (Swift + SwiftUI) that **translates** `.srt` subtitles between languages
+with Claude and **reviews** subtitle files for technical and language errors.
+It started out as the script `translate-srt.mjs` (English → Swedish) and was
+previously called *Undertextaren*.
 
-- **Original och översättning sida vid sida.** Varje replik visas med nummer,
-  tidkod, engelsk text och svensk text. Den svenska texten kan redigeras direkt.
-  En CPS-etikett (tecken per sekund) blir orange eller röd när en replik är för
-  lång, och en ikon visar när en rad är längre än max radlängd.
-- **Frågor när Claude är osäker.** Claude översätter alltid med sitt bästa
-  förslag, men kan ställa frågor om t.ex. du eller ni, talarens kön, ordlekar
-  eller återkommande begrepp. Du väljer själv hur frågorna ska hanteras:
-  - *Pausa och fråga direkt* (standard). Översättningen stannar, du svarar,
-    och batchen översätts om med ditt svar.
-  - *Samla frågor.* Översättningen fortsätter och frågorna samlas i
-    sidopanelen. När du svarar översätts de berörda replikerna om.
-  - *Fråga aldrig.*
+Read this in: **English** · [Svenska](docs/README.sv.md) · [Norsk](docs/README.nb.md) ·
+[Dansk](docs/README.da.md) · [Suomi](docs/README.fi.md) · [Íslenska](docs/README.is.md)
 
-  Dina svar gäller resten av översättningen, och du kan välja att spara dem i
-  seriens prompt.
-- **Promptbibliotek per serie eller film.** Claude kan skapa en prompt för ett
-  verk, med stilguide, karaktärer, ordlista och anteckningar. Den kan använda
-  webbsökning och repliker ur den inlästa filen som underlag. Promptarna sparas
-  och hittas automatiskt via filnamnet nästa gång. Till exempel matchar
-  `All.Creatures.Great.and.Small.S03E02.1080p.WEB.en.srt` den sparade prompten
-  för *All Creatures Great and Small*. Du kan också lägga till alias.
-- **Uppdatering av prompten.** Under översättningen noterar Claude nya
-  karaktärer, termer och iakttagelser som inte redan finns i prompten. När
-  översättningen är klar frågar appen om prompten ska uppdateras, och du
-  bockar i vad som ska sparas.
+## Features
 
-## Språk
+- **Original and translation side by side.** Every subtitle is shown with its
+  number, timecode, original text and translation, and the translation can be
+  edited directly. A CPS badge (characters per second) turns orange or red when
+  a subtitle is too long, and an icon shows lines longer than the maximum.
+- **Any language pair.** About 30 languages, chosen as *From* and *To* above
+  the subtitles. With *From: Automatic* the original's language is detected
+  with macOS's built-in language recognition (offline and free), with hints
+  from the file name (`_en`, `.ger`, `.French` …) when the text is ambiguous.
+- **Questions when Claude is unsure.** Claude always translates with its best
+  suggestion but may ask about formal or informal address, the speaker's
+  gender, puns or recurring terms. Choose how questions are handled:
+  *pause and ask right away* (the batch is then translated again with your
+  answer), *collect questions* in the side panel, or *never ask*. Answers apply
+  to the rest of the run and can be saved in the series' prompt.
+- **A prompt library per series or film.** Claude can create a prompt for a
+  work – style guide, characters, glossary and notes – optionally using web
+  search and lines from the loaded file. Prompts are saved and found
+  automatically from the file name the next time, e.g.
+  `All.Creatures.Great.and.Small.S03E02.1080p.WEB.en.srt` finds the prompt for
+  *All Creatures Great and Small*. Each prompt has a target language; a prompt
+  for another language can be used anyway or serve as the basis for a new one.
+- **The prompt keeps learning.** During translation Claude notes new
+  characters, terms and observations. When the translation is done the app
+  asks whether the prompt should be updated, and you tick what to keep.
+- **Import and export of prompts.** Import existing style guides (`.md`/`.txt`,
+  e.g. files used with `STYLE_FILE` in the script) or `.json` exports.
+  Claude can optionally split a text into style guide, characters and
+  glossary.
+- **Review.** Checks any `.srt` file in any language – see below.
+- **Interface in six languages:** English, Swedish, Norwegian (Bokmål),
+  Danish, Finnish and Icelandic. The app follows the macOS language or the
+  choice under *Settings → App language*. Claude writes its questions and
+  comments in the same language.
 
-- Välj **Från** och **Till** i raden ovanför replikerna (eller i Inställningar).
-  Ett 30-tal språk finns, bl.a. svenska, norska, danska, finska, engelska,
-  tyska, franska, spanska, italienska, polska, japanska och kinesiska.
-- **Från: Automatiskt** känner igen originalets språk med macOS inbyggda
-  språkigenkänning (NaturalLanguage – offline och gratis). Är texten tvetydig
-  används filnamnet (`_en`, `.ger`, `.French` …). Upptäckt språk och hur säker
-  igenkänningen är visas bredvid språkvalet.
-- Grundstilen är språkneutral; varje målspråk har egna regler (du/ni,
-  du/Sie, tu/vous, fransk typografi, spanska ¿¡ …).
-- Varje prompt har ett målspråk och hittas automatiskt bara när du översätter
-  till det språket. Finns en prompt för samma serie på ett annat språk kan du
-  använda den ändå, eller låta Claude skapa en version för det nya språket med
-  den gamla som underlag.
-- Det sparade filnamnet får målspråkets kod: `Show_en.srt` → `Show_de.srt`.
+## Review a subtitle file
 
-## Granska en undertextfil
+**Review** in the sidebar (or ⌥⌘O) checks any `.srt` file. A translation can
+also be reviewed directly with the **Review** button in the translation view.
 
-**Granska** i sidofältet (eller ⌥⌘O) kontrollerar vilken `.srt`-fil som helst,
-på vilket språk som helst. Det går också att granska en översättning direkt
-med knappen **Granska** i översättningsvyn.
+**Technical checks** run locally, instantly and free of charge:
 
-**Tekniska kontroller** körs direkt, lokalt och gratis:
-
-| Kategori | Kontrolleras |
+| Category | Checked |
 |---|---|
-| Tidkoder | otolkbara tidkoder, slut före start, överlapp med nästa replik (kan rättas), fel ordning, för kort (< 0,7 s) eller för lång (> 7 s) visningstid |
-| Numrering | hopp och dubbletter (kan numreras om) |
-| Radlängd / läshastighet | fler än 2 rader, för långa rader, för hög CPS |
-| Formatering | tomma repliker, dubbla mellanslag, mellanslag i början/slutet, obalanserade `<i>`/`<b>`/`<u>`-taggar |
-| Interpunktion | rad som börjar med t.ex. `!`, `&` eller `,`, mellanslag före skiljetecken (utom franska ! ? : ;), saknat mellanslag efter (kolon i `1:a`, `S:t`, `TV:n` godtas), parenteser och citattecken som inte går jämnt ut, liten bokstav efter avslutad mening |
-| Konsekvens | blandat `...`/`…`, blandade dialogstreck (`-`, `- `, `– `) |
-| Stavning | upprepade ord (”att att”) |
+| Timecodes | unparsable timecodes, end before start, overlap with the next subtitle (can be fixed), wrong order, too short (< 0.7 s) or too long (> 7 s) display time |
+| Numbering | gaps and duplicates (can be renumbered) |
+| Line length / reading speed | more than 2 lines, lines that are too long, CPS that is too high |
+| Formatting | empty subtitles, double spaces, leading/trailing spaces, unbalanced `<i>`/`<b>`/`<u>` tags |
+| Punctuation | a line starting with e.g. `!`, `&` or `,`; space before punctuation (except French ! ? : ;); missing space after (a colon inside words such as `1:a`, `S:t`, `TV:n` is accepted); brackets and quotation marks that don't match; a lower-case letter after a finished sentence |
+| Consistency | mixed `...`/`…`, mixed dialogue dashes (`-`, `- `, `– `) |
+| Spelling | repeated words ("the the") |
 
-**Granska språket** låter Claude gå igenom stavning, grammatik,
-interpunktion, ordval, konsekvens (t.ex. namn som stavas olika) och repliker
-som inte går att förstå. Om en sparad prompt matchar filen används dess
-ordlista för namn och termer.
+**Review language** lets Claude check spelling, grammar, punctuation, wording,
+consistency (e.g. names spelled differently) and subtitles that are hard to
+understand. **The review uses the same prompt as the translation**: the base
+style, the target language's rules and the work profile with its style guide,
+characters, glossary and saved decisions. Corrections therefore follow the
+series' rules for forms of address, tone and names, and deviations from the
+prompt are reported.
 
-### Jämför med originalet
+### Compare with the original
 
-När en översättning granskas kan den jämföras med originalfilen:
+- From the translation view the original is already linked.
+- When you open a file the app looks for the original in the same folder
+  (`Show_sv.srt` → `Show_en.srt`, `Show.en.srt`, `Show.srt` …), or choose one
+  with **Compare with original file…**.
+- Subtitles are paired by their timecodes, so it works even when the original
+  and the translation split subtitles differently. The original text is shown
+  above every subtitle.
 
-- Från översättningsvyn (knappen **Granska**) är originalet redan kopplat.
-- När du öppnar en fil letar appen efter originalet i samma mapp
-  (`Show_sv.srt` → `Show_en.srt`, `Show.en.srt`, `Show.srt` …). Du kan också
-  välja fil själv med **Jämför med originalfil…**.
-- Replikerna paras ihop via tidkoderna, så det fungerar även när original och
-  översättning delar upp repliker olika. Originaltexten visas ovanför varje
-  replik.
+Locally, the comparison finds original subtitles that are missing from the
+translation (and vice versa), italics that were lost, and years, amounts and
+times that changed or disappeared. With **Review and compare**, Claude also
+checks mistranslations, content that was dropped or added, names, numbers,
+negations and forms of address. Normal condensation is not treated as an error.
 
-Jämförelsen hittar lokalt repliker i originalet som saknas i översättningen
-(och tvärtom), kursiv text som inte följt med, och årtal, belopp och tider som
-ändrats eller fallit bort. När du klickar **Granska och jämför** kontrollerar
-Claude dessutom felöversättningar, innehåll som fallit bort eller lagts till,
-namn, siffror, negationer och tilltal. Vanlig förtätning räknas inte som fel.
-Anmärkningarna hamnar i kategorin **Mot originalet**.
+Every issue shows a suggestion with removed text in red and new text in green.
+Choose **Fix** or **Ignore**, or **Fix all** for all technical fixes or all of
+Claude's suggestions. Subtitles can be edited directly and reset to the
+original. **Save** writes the corrected file.
 
-Varje anmärkning visar ett förslag där borttagen text är röd och ny text är
-grön. Välj **Åtgärda** eller **Ignorera**, eller **Åtgärda alla** för alla
-tekniska rättningar eller alla Claudes förslag. Repliker kan också redigeras
-direkt och återställas till originalet. **Spara** skriver den rättade filen.
+## Requirements
 
-## Krav
+- macOS 14 (Sonoma) or later
+- Full Xcode 15 or later (the Command Line Tools are not enough – SwiftUI's
+  macros, such as `@State`, only ship with Xcode)
+- An API key from [console.anthropic.com](https://console.anthropic.com)
 
-- macOS 14 (Sonoma) eller senare
-- Fullständiga Xcode 15 eller senare (Command Line Tools räcker inte – SwiftUI:s makron, t.ex. `@State`, finns bara i Xcode)
-- En API-nyckel från [console.anthropic.com](https://console.anthropic.com)
+## Build and run
 
-## Bygga och starta
-
-Snabbast, direkt från terminalen:
-
-```bash
-cd Undertextaren
-swift run -c release
-```
-
-Bygg en riktig `.app` som kan läggas i Program-mappen:
+Build a real `.app` that can be put in the Applications folder:
 
 ```bash
 ./build-app.sh
-open build/Undertextaren.app
 ```
 
-Eller öppna paketet i Xcode och tryck ⌘R:
+```bash
+open "build/SubTitle TransFixer.app"
+```
+
+Or open the package in Xcode and press ⌘R:
 
 ```bash
 open Package.swift
 ```
 
-Första gången: öppna **Inställningar (⌘,)** och klistra in API-nyckeln. Den
-sparas i macOS-nyckelringen. Appen läser också miljövariabeln
-`ANTHROPIC_API_KEY` om den finns.
+The first time: open **Settings (⌘,)** and paste the API key. It is stored in
+the macOS keychain. The app also reads the `ANTHROPIC_API_KEY` environment
+variable if it is set.
 
-## API-nyckeln och nyckelringen
+### Moving from Undertextaren
 
-Nyckeln sparas i macOS-nyckelringen (posten *Undertextaren* i
-Nyckelhanteraren) och läses därifrån vid varje start. Nyckelringen släpper
-bara fram nyckeln till samma app som sparade den, och "samma app" avgörs av
-kodsigneringen. Därför signerar `build-app.sh` med ett utvecklarcertifikat om
-ett sådant finns:
+On first launch, settings, saved prompts and the API key are copied from
+*Undertextaren*. Nothing is deleted, so the old app keeps working.
 
-1. Öppna Xcode → **Inställningar → Konton** och lägg till ditt Apple-ID
-   (ett gratis konto räcker).
-2. Välj kontot → **Hantera certifikat… → + → Apple Development**.
-3. Bygg med `./build-app.sh`. Det står `✓ Signerad med: Apple Development …`.
-4. Lägg in API-nyckeln en sista gång. Frågar macOS om åtkomst till
-   nyckelringen, välj **Tillåt alltid**.
+## The API key and the keychain
 
-Utan certifikat ad hoc-signeras appen, och då kan nyckeln behöva läggas in
-igen efter varje bygge. Om du har flera certifikat kan du välja ett med
+The key is stored in the macOS keychain (the *SubTitle TransFixer* item in
+Keychain Access) and read from there at every launch. The keychain only
+releases the key to the same app that saved it, and "the same app" is decided
+by the code signature. That is why `build-app.sh` signs with a developer
+certificate when one is available:
+
+1. Open Xcode → **Settings → Accounts** and add your Apple ID (a free account is enough).
+2. Select the account → **Manage Certificates… → + → Apple Development**.
+3. Build with `./build-app.sh`. It prints `✓ Signed with: Apple Development …`.
+4. Enter the API key one last time. If macOS asks for keychain access, choose **Always Allow**.
+
+Without a certificate the app is signed ad hoc, and the key may have to be
+entered again after every build. With several certificates, choose one with
 `SIGN_IDENTITY="Apple Development: …" ./build-app.sh`.
 
-## Så används den
+## How to use it
 
-1. Öppna eller släpp en engelsk `.srt` i fönstret (⌘O).
-2. Appen gissar titel och avsnitt ur filnamnet och letar efter en sparad
-   prompt. Om ingen finns kan du klicka **Skapa med Claude…**.
-3. Tryck **Översätt** (⌘R). Du kan stoppa och fortsätta senare. Då
-   översätts bara de repliker som saknar översättning.
-4. Granska resultatet. Använd filtren *Frågor*, *För långa*, *Redigerade* och
-   *Fel*. Högerklicka på en replik för att översätta om den.
-5. Spara (⌘S). Språkkoden i filnamnet byts mot målspråkets:
-   `_en.srt` → `_sv.srt`, `.eng.srt` → `.sv.srt`, annars `.srt` → `.sv.srt`.
+1. Open or drop a subtitle file in the window (⌘O).
+2. Check *From* and *To*. The app guesses the title and episode from the file
+   name and looks for a saved prompt. If there is none, click **Create with Claude…**.
+3. Press **Translate** (⌘R). You can stop and continue later; only subtitles
+   without a translation are translated.
+4. Check the result with the filters *Questions*, *Too long*, *Edited* and
+   *Failed*. Right-click a subtitle to translate it again.
+5. Press **Review** to check the translation, or **Save** (⌘S). The language
+   code in the file name is replaced with the target language's:
+   `_en.srt` → `_sv.srt`, `.eng.srt` → `.sv.srt`, otherwise `.srt` → `.sv.srt`.
 
-## Inställningar
+## Settings
 
-| Inställning | Standard | Motsvarar i skriptet |
+| Setting | Default | In the original script |
 |---|---|---|
-| Modell | `claude-opus-5-5` | `MODEL` |
-| Repliker per anrop | 20 | `BATCH_SIZE` |
-| Kontext (tidigare repliker) | 4 | `CONTEXT` |
-| Max tecken/sekund | 17 | `MAX_CPS` |
-| Max tecken per rad | 42 | `MAX_LINE_LEN` |
-| Grundstil | skriptets `DEFAULT_STYLE` | `STYLE_FILE` (kan läsas in från fil) |
+| App language | Same as macOS | – |
+| Model | `claude-opus-5-5` | `MODEL` |
+| Translate from / into | Automatic / Swedish | – |
+| Subtitles per request | 20 | `BATCH_SIZE` |
+| Context (earlier subtitles) | 4 | `CONTEXT` |
+| Max characters/second | 17 | `MAX_CPS` |
+| Max characters per line | 42 | `MAX_LINE_LEN` |
+| Base style | language-neutral default | `STYLE_FILE` (can be loaded from a file) |
 
-Du kan också välja *Ansträngning (effort)* och om en reservmodell ska användas
-när en förfrågan avböjs (server-side fallback). Sonnet 5.5 och Haiku 5.5 är
-billigare alternativ till Opus 5.5.
+You can also choose the *Effort* and whether a fallback model is used when a
+request is declined (server-side fallback). Sonnet 5.5 and Haiku 5.5 are
+cheaper alternatives to Opus 5.5.
 
-## Importera befintliga prompter
+The base style uses the placeholders `{SOURCE_LANGUAGE}`, `{TARGET_LANGUAGE}`,
+`{TARGET_RULES}` (the target language's own rules, e.g. du/ni or du/Sie),
+`{MAX_LINE_LEN}` and `{MAX_CPS}`. A base style that you never edited in an
+earlier version is replaced with the new default automatically.
 
-Har du redan stilguider, t.ex. de `.md`/`.txt`-filer du använt med
-`STYLE_FILE` i skriptet, kan du importera dem:
+## Where are the prompts stored?
 
-- **Arkiv → Importera prompter… (⇧⌘I)**, knappen i sidofältet, eller släpp
-  filerna på sidofältet. Flera filer går bra på en gång.
-- Titeln gissas ur filnamnet (`little-house-on-the-prairie_stil.md` →
-  *Little House On The Prairie*) och kan ändras innan import. Titeln är det
-  som matchas mot undertextfilernas namn, så skriv den som serien heter.
-- **Spara som:** ny prompt, eller ersätt/uppdatera en som redan finns.
-- **Låt Claude dela upp …** (valfritt): Claude flyttar karaktärer och termer
-  till egna listor och lägger resten i stilguiden. Utan bocken importeras
-  texten ordagrant som stilguide.
-- `.json` som exporterats från Undertextaren (en eller alla prompter)
-  importeras som de är.
+`~/Library/Application Support/SubTitle TransFixer/profiles.json` – plain JSON
+that can be backed up or shared. **Settings → Show in Finder** opens the folder.
 
-Exportera med **Exportera** i prompten, högerklick i sidofältet eller
-**Arkiv → Exportera alla prompter…**.
+## Localization
 
-## Var sparas promptarna?
+Every user-facing string is written in English in the code and wrapped in
+`L("…")`; the English text is the key. Placeholders are written `{0}`, `{1}` …
+The translations live in `Sources/SubTitleTransFixer/Localization/Strings+<code>.swift`
+and are generated from the JSON tables in `localization/<code>.json` (edit those, then regenerate):
 
-`~/Library/Application Support/Undertextaren/profiles.json`. Det är vanlig
-JSON som går att säkerhetskopiera eller dela. **Inställningar → Visa i
-Finder** öppnar mappen.
+```bash
+python3 scripts/localization.py extract > strings.json
+```
 
-## Ikon
+```bash
+python3 scripts/localization.py generate localization/sv.json
+```
 
-Ikonen finns i `Assets/`: `AppIcon.svg` är källan, `AppIcon.icns` används av
-`build-app.sh` och `AppIcon-1024.png` är en förhandsvisning. Visar Dock eller
-Finder fortfarande den gamla ikonen efter ett bygge, kör
-`killall Dock; killall Finder`.
+```bash
+python3 scripts/localization.py check
+```
 
-## Kodens upplägg
+`check` reports missing translations, placeholders that differ and duplicate
+keys (a duplicate key would crash the app at launch).
+
+## Icon
+
+The icon lives in `Assets/`: `AppIcon.svg` is the source, `AppIcon.icns` is
+used by `build-app.sh` and `AppIcon-1024.png` is a preview. If the Dock or
+Finder still shows the old icon after a build, run `killall Dock; killall Finder`.
+
+## Code layout
 
 ```
-Sources/Undertextaren/
-├── UndertextarenApp.swift        appen, menyer, AppModel
+Sources/SubTitleTransFixer/
+├── SubTitleTransFixerApp.swift   the app, menus, AppModel
 ├── Core/
-│   ├── SRT.swift                 parser/serialiserare, tidkoder, titel ur filnamn
-│   ├── Language.swift            språklista, målspråksregler, språkigenkänning
-│   ├── SubtitleChecker.swift     tekniska kontroller av en .srt-fil
-│   ├── ReviewSession.swift       granskning: anmärkningar, rättningar, Claude-granskning
-│   ├── ReviewModels.swift        anmärkningar, kategorier, allvarlighetsgrad
-│   ├── TextDiff.swift            ordvis jämförelse för att visa ändringar
-│   ├── AnthropicClient.swift     Messages API (rå HTTP), retry/backoff, JSON-tolkning
-│   ├── PromptBuilder.swift       grundstil + verksprofil + beslut + svarsformat
-│   ├── TranslationSession.swift  översättningsmotor, frågor, förslag
-│   ├── PromptLibrary.swift       sparade promptar, matchning mot titel
-│   ├── ProfileGenerator.swift    Claude skapar, förbättrar eller strukturerar en prompt
-│   ├── PromptImporter.swift      import/export av prompter (.md/.txt/.json)
-│   ├── AppSettings.swift         inställningar + nyckelring
-│   └── Models.swift              datatyper
-└── Views/                        SwiftUI-vyer
+│   ├── AppInfo.swift             names, identifiers, migration from Undertextaren
+│   ├── SRT.swift                 parser/serializer, timecodes, title from file name
+│   ├── Language.swift            language list, target-language rules, detection
+│   ├── AnthropicClient.swift     Messages API (raw HTTP), retry/backoff, JSON parsing
+│   ├── PromptBuilder.swift       base style + work profile + decisions, for translation and review
+│   ├── TranslationSession.swift  translation engine, questions, suggestions
+│   ├── PromptLibrary.swift       saved prompts, matching against titles
+│   ├── ProfileGenerator.swift    Claude creates, improves or structures a prompt
+│   ├── PromptImporter.swift      import/export of prompts (.md/.txt/.json)
+│   ├── SubtitleChecker.swift     technical checks of an .srt file
+│   ├── ReviewSession.swift       review: issues, fixes, comparison, Claude review
+│   ├── ReviewModels.swift        issues, categories, severity
+│   ├── TextDiff.swift            word-level diff to show changes
+│   ├── AppSettings.swift         settings + keychain
+│   └── Models.swift              data types
+├── Localization/                 L(), UI languages and translation tables
+└── Views/                        SwiftUI views
+scripts/localization.py           extract, generate and check translations
 ```
