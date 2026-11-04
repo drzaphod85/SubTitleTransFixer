@@ -1,5 +1,6 @@
-import AVKit
+import AVFoundation
 import SwiftUI
+// No `import AVKit` here – see PlayerSurface.swift for why.
 
 /// The video that belongs to the reviewed file: shown under the review header.
 struct MediaRow: View {
@@ -93,21 +94,22 @@ struct MediaPreviewSheet: View {
             }
 
             ZStack {
-                VideoPlayer(player: player.player) {
-                    VStack {
-                        Spacer()
-                        if let text = overlayText {
-                            Text(SubtitleChecker.stripTags(text))
-                                .font(.title3.weight(.semibold))
-                                .multilineTextAlignment(.center)
-                                .foregroundStyle(.white)
-                                .shadow(color: .black, radius: 2)
-                                .padding(.horizontal, 12).padding(.vertical, 4)
-                                .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 6))
-                                .padding(.bottom, 24)
-                        }
+                PlayerSurfaceView(player: player.player)
+                // The subtitle over the picture, above the player's own controls.
+                VStack {
+                    Spacer()
+                    if let text = overlayText {
+                        Text(SubtitleChecker.stripTags(text))
+                            .font(.title3.weight(.semibold))
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(.white)
+                            .shadow(color: .black, radius: 2)
+                            .padding(.horizontal, 12).padding(.vertical, 4)
+                            .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 6))
+                            .padding(.bottom, 56)
                     }
                 }
+                .allowsHitTesting(false)
                 if loading {
                     ProgressView(L("Preparing the clip…"))
                         .padding()
@@ -276,5 +278,18 @@ struct WaveformView: View {
             })
         }
         .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+/// Hosts the AppKit video view created in PlayerSurface.swift.
+private struct PlayerSurfaceView: NSViewRepresentable {
+    let player: AVPlayer
+
+    func makeNSView(context: Context) -> NSView {
+        PlayerSurface.makeView(player: player)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        PlayerSurface.update(nsView, player: player)
     }
 }
