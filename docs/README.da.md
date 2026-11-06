@@ -155,6 +155,52 @@ Uden et certifikat signeres appen ad hoc, og nøglen skal muligvis
 indtastes igen efter hver build. Har du flere certifikater, vælger du et med
 `SIGN_IDENTITY="Apple Development: …" ./build-app.sh`.
 
+## Download
+
+Signerede og notariserede versioner findes under
+[Releases](https://github.com/drzaphod85/SubTitleTransFixer/releases).
+Åbn `.dmg`-filen og træk *SubTitle TransFixer* til mappen Programmer.
+[CHANGELOG.md](../CHANGELOG.md) beskriver, hvad der er nyt i hver version.
+
+## Udgivelser og signering
+
+En udgivelse bygges af GitHub Actions (`.github/workflows/release.yml`), når et
+versionstag pushes. Den bygger en universel app (Apple silicon + Intel),
+signerer den med *Developer ID*, lader Apple notarisere den og udgiver en
+`.dmg` sammen med versionens noter fra `CHANGELOG.md`.
+
+**Én gang: tilføj hemmelighederne** (repoet på GitHub → **Settings → Secrets and
+variables → Actions → New repository secret**):
+
+1. *(Kun hvis certifikatet ikke allerede ligger i nøgleringen.)* I Xcode → **Indstillinger → Konti → Administrer certifikater… → + → Developer ID Application**.
+2. I Nøgleringsadgang, find *Developer ID Application: …* under **Mine certifikater**,
+   højreklik → **Eksporter…**, gem som `.p12` og vælg en adgangskode.
+3. Kopiér filen som base64: `base64 -i certificate.p12 | pbcopy`
+4. Opret en appspecifik adgangskode på [account.apple.com](https://account.apple.com)
+   → **Log ind og sikkerhed → Appspecifikke adgangskoder**.
+
+| Hemmelighed | Værdi |
+|---|---|
+| `MACOS_CERTIFICATE_P12` | base64-teksten fra trin 3 |
+| `MACOS_CERTIFICATE_PASSWORD` | adgangskoden fra trin 2 |
+| `APPLE_ID` | udviklerkontoens Apple-id (e-mail) |
+| `APPLE_TEAM_ID` | team-id (10 tegn, vises på developer.apple.com → Membership) |
+| `APPLE_APP_PASSWORD` | den appspecifikke adgangskode fra trin 4 |
+
+**Hver udgivelse:** tilføj et afsnit `## [x.y.z]` øverst i `CHANGELOG.md`, og derefter:
+
+```bash
+git tag v1.0.0
+```
+
+```bash
+git push origin v1.0.0
+```
+
+Uden hemmelighederne bygger arbejdsgangen stadig appen, men usigneret og kun som
+kladde. Et byg kan også startes manuelt under **Actions → Release → Run
+workflow**; det bliver altid en kladde.
+
 ## Sådan bruger du den
 
 1. Åbn eller slip en undertekstfil i vinduet (⌘O).

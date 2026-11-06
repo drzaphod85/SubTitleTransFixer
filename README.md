@@ -169,6 +169,52 @@ Without a certificate the app is signed ad hoc, and the key may have to be
 entered again after every build. With several certificates, choose one with
 `SIGN_IDENTITY="Apple Development: …" ./build-app.sh`.
 
+## Download
+
+Signed and notarized versions are on the
+[Releases](https://github.com/drzaphod85/SubTitleTransFixer/releases) page.
+Open the `.dmg` and drag *SubTitle TransFixer* to the Applications folder.
+[CHANGELOG.md](CHANGELOG.md) lists what is new in each version.
+
+## Releases and signing
+
+A release is built by GitHub Actions (`.github/workflows/release.yml`) when a
+version tag is pushed. It builds a universal app (Apple silicon + Intel), signs
+it with *Developer ID*, has Apple notarize it and publishes a `.dmg` together
+with the notes for that version from `CHANGELOG.md`.
+
+**Once: add the secrets** (the repository on GitHub → **Settings → Secrets and
+variables → Actions → New repository secret**):
+
+1. *(Only if the certificate is not in your keychain already.)* In Xcode → **Settings → Accounts → Manage Certificates… → + → Developer ID Application**.
+2. In Keychain Access, find *Developer ID Application: …* under **My Certificates**,
+   right-click → **Export…**, save as `.p12` and choose a password.
+3. Copy the file as base64: `base64 -i certificate.p12 | pbcopy`
+4. Create an app-specific password at [account.apple.com](https://account.apple.com)
+   → **Sign-In and Security → App-Specific Passwords**.
+
+| Secret | Value |
+|---|---|
+| `MACOS_CERTIFICATE_P12` | the base64 text from step 3 |
+| `MACOS_CERTIFICATE_PASSWORD` | the password from step 2 |
+| `APPLE_ID` | the Apple ID e-mail of the developer account |
+| `APPLE_TEAM_ID` | the team ID (10 characters, shown at developer.apple.com → Membership) |
+| `APPLE_APP_PASSWORD` | the app-specific password from step 4 |
+
+**Each release:** add a section `## [x.y.z]` at the top of `CHANGELOG.md`, then:
+
+```bash
+git tag v1.0.0
+```
+
+```bash
+git push origin v1.0.0
+```
+
+Without the secrets the workflow still builds the app, but unsigned, and only
+as a draft release. A build can also be started by hand under **Actions →
+Release → Run workflow**; that always makes a draft.
+
 ## How to use it
 
 1. Open or drop a subtitle file in the window (⌘O).

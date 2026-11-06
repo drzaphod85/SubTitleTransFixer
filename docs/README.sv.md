@@ -154,6 +154,52 @@ Utan certifikat signeras appen ad hoc, och nyckeln kan behöva anges igen efter
 varje bygge. Om du har flera certifikat väljer du ett med
 `SIGN_IDENTITY="Apple Development: …" ./build-app.sh`.
 
+## Ladda ner
+
+Signerade och notariserade versioner finns under
+[Releases](https://github.com/drzaphod85/SubTitleTransFixer/releases).
+Öppna `.dmg`-filen och dra *SubTitle TransFixer* till Program-mappen.
+[CHANGELOG.md](../CHANGELOG.md) beskriver vad som är nytt i varje version.
+
+## Releaser och signering
+
+En release byggs av GitHub Actions (`.github/workflows/release.yml`) när en
+versionstagg pushas. Den bygger en universell app (Apple silicon + Intel),
+signerar den med *Developer ID*, låter Apple notarisera den och publicerar en
+`.dmg` tillsammans med versionens anteckningar från `CHANGELOG.md`.
+
+**En gång: lägg in hemligheterna** (repot på GitHub → **Settings → Secrets and
+variables → Actions → New repository secret**):
+
+1. *(Bara om certifikatet inte redan finns i nyckelringen.)* I Xcode → **Inställningar → Konton → Hantera certifikat… → + → Developer ID Application**.
+2. I Nyckelhanterare, leta upp *Developer ID Application: …* under **Mina certifikat**,
+   högerklicka → **Exportera…**, spara som `.p12` och välj ett lösenord.
+3. Kopiera filen som base64: `base64 -i certificate.p12 | pbcopy`
+4. Skapa ett appspecifikt lösenord på [account.apple.com](https://account.apple.com)
+   → **Inloggning och säkerhet → Appspecifika lösenord**.
+
+| Hemlighet | Värde |
+|---|---|
+| `MACOS_CERTIFICATE_P12` | base64-texten från steg 3 |
+| `MACOS_CERTIFICATE_PASSWORD` | lösenordet från steg 2 |
+| `APPLE_ID` | utvecklarkontots Apple-ID (e-post) |
+| `APPLE_TEAM_ID` | team-ID (10 tecken, visas på developer.apple.com → Membership) |
+| `APPLE_APP_PASSWORD` | det appspecifika lösenordet från steg 4 |
+
+**Varje release:** lägg till ett avsnitt `## [x.y.z]` överst i `CHANGELOG.md`, sedan:
+
+```bash
+git tag v1.0.0
+```
+
+```bash
+git push origin v1.0.0
+```
+
+Utan hemligheterna bygger arbetsflödet ändå appen, men osignerad och bara som
+utkast till release. Ett bygge kan också startas för hand under **Actions →
+Release → Run workflow**; det blir alltid ett utkast.
+
 ## Så här använder du appen
 
 1. Öppna eller släpp en undertextfil i fönstret (⌘O).
