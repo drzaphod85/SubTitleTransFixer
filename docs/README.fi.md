@@ -165,6 +165,52 @@ avain on ehkä syötettävä uudelleen jokaisen koonnin jälkeen. Jos varmenteit
 on useita, valitse yksi komennolla
 `SIGN_IDENTITY="Apple Development: …" ./build-app.sh`.
 
+## Lataa
+
+Allekirjoitetut ja notarisoidut versiot löytyvät
+[Releases](https://github.com/drzaphod85/SubTitleTransFixer/releases)-sivulta.
+Avaa `.dmg`-tiedosto ja vedä *SubTitle TransFixer* Ohjelmat-kansioon.
+[CHANGELOG.md](../CHANGELOG.md) kertoo, mitä kussakin versiossa on uutta.
+
+## Julkaisut ja allekirjoitus
+
+GitHub Actions (`.github/workflows/release.yml`) kokoaa julkaisun, kun
+versiotagi pushataan. Se kokoaa universaalin sovelluksen (Apple silicon + Intel),
+allekirjoittaa sen *Developer ID* -varmenteella, notarisoi sen Applella ja
+julkaisee `.dmg`-tiedoston sekä version muistiinpanot `CHANGELOG.md`-tiedostosta.
+
+**Kerran: lisää salaisuudet** (repo GitHubissa → **Settings → Secrets and
+variables → Actions → New repository secret**):
+
+1. *(Vain jos varmenne ei ole jo avainnipussa.)* Xcodessa → **Asetukset → Tilit → Hallitse varmenteita… → + → Developer ID Application**.
+2. Avainnipun käytössä etsi *Developer ID Application: …* kohdasta **Omat varmenteet**,
+   napsauta oikealla → **Vie…**, tallenna `.p12`-muodossa ja valitse salasana.
+3. Kopioi tiedosto base64-muodossa: `base64 -i certificate.p12 | pbcopy`
+4. Luo appikohtainen salasana osoitteessa [account.apple.com](https://account.apple.com)
+   → **Kirjautuminen ja suojaus → Appikohtaiset salasanat**.
+
+| Salaisuus | Arvo |
+|---|---|
+| `MACOS_CERTIFICATE_P12` | base64-teksti vaiheesta 3 |
+| `MACOS_CERTIFICATE_PASSWORD` | salasana vaiheesta 2 |
+| `APPLE_ID` | kehittäjätilin Apple ID (sähköposti) |
+| `APPLE_TEAM_ID` | tiimin tunnus (10 merkkiä, developer.apple.com → Membership) |
+| `APPLE_APP_PASSWORD` | appikohtainen salasana vaiheesta 4 |
+
+**Jokainen julkaisu:** lisää osio `## [x.y.z]` `CHANGELOG.md`-tiedoston alkuun ja sitten:
+
+```bash
+git tag v1.0.0
+```
+
+```bash
+git push origin v1.0.0
+```
+
+Ilman salaisuuksia työnkulku kokoaa sovelluksen silti, mutta allekirjoittamattomana
+ja vain luonnokseksi. Koonnin voi käynnistää myös käsin kohdassa **Actions →
+Release → Run workflow**; siitä tulee aina luonnos.
+
 ## Käyttö
 
 1. Avaa tekstitystiedosto tai pudota se ikkunaan (⌘O).

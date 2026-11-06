@@ -155,6 +155,52 @@ af kóðaundirrituninni. Þess vegna undirritar `build-app.sh` með forritarask�
 inn aftur eftir hverja byggingu. Ef skírteinin eru fleiri en eitt skaltu velja eitt með
 `SIGN_IDENTITY="Apple Development: …" ./build-app.sh`.
 
+## Sækja
+
+Undirritaðar og þinglýstar útgáfur eru á
+[Releases](https://github.com/drzaphod85/SubTitleTransFixer/releases)-síðunni.
+Opnaðu `.dmg`-skrána og dragðu *SubTitle TransFixer* í Forrit-möppuna.
+[CHANGELOG.md](../CHANGELOG.md) segir hvað er nýtt í hverri útgáfu.
+
+## Útgáfur og undirritun
+
+GitHub Actions (`.github/workflows/release.yml`) byggir útgáfu þegar
+útgáfumerki (tag) er sent upp. Það byggir alhliða forrit (Apple silicon + Intel),
+undirritar það með *Developer ID*, lætur Apple þinglýsa (notarize) því og birtir
+`.dmg` ásamt athugasemdum útgáfunnar úr `CHANGELOG.md`.
+
+**Einu sinni: bættu við leyndarmálunum** (gagnasafnið á GitHub → **Settings →
+Secrets and variables → Actions → New repository secret**):
+
+1. *(Aðeins ef skilríkið er ekki þegar í lyklakippunni.)* Í Xcode → **Stillingar → Reikningar → Sýsla með skilríki… → + → Developer ID Application**.
+2. Í Lyklakippu, finndu *Developer ID Application: …* undir **Mín skilríki**,
+   hægrismelltu → **Flytja út…**, vistaðu sem `.p12` og veldu lykilorð.
+3. Afritaðu skrána sem base64: `base64 -i certificate.p12 | pbcopy`
+4. Búðu til forritssértækt lykilorð á [account.apple.com](https://account.apple.com)
+   → **Innskráning og öryggi → Forritssértæk lykilorð**.
+
+| Leyndarmál | Gildi |
+|---|---|
+| `MACOS_CERTIFICATE_P12` | base64-textinn úr skrefi 3 |
+| `MACOS_CERTIFICATE_PASSWORD` | lykilorðið úr skrefi 2 |
+| `APPLE_ID` | Apple-auðkenni þróunarreikningsins (netfang) |
+| `APPLE_TEAM_ID` | teymisauðkenni (10 stafir, á developer.apple.com → Membership) |
+| `APPLE_APP_PASSWORD` | forritssértæka lykilorðið úr skrefi 4 |
+
+**Hver útgáfa:** bættu kafla `## [x.y.z]` efst í `CHANGELOG.md`, síðan:
+
+```bash
+git tag v1.0.0
+```
+
+```bash
+git push origin v1.0.0
+```
+
+Án leyndarmálanna byggir verkflæðið samt forritið, en óundirritað og aðeins sem
+drög. Einnig má hefja byggingu handvirkt undir **Actions → Release → Run
+workflow**; það verða alltaf drög.
+
 ## Notkun
 
 1. Opnaðu skjátextaskrá eða slepptu henni í gluggann (⌘O).
