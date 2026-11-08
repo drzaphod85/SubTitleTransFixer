@@ -27,7 +27,7 @@ struct ReviewView: View {
             Divider()
             statusBar
         }
-        .dropDestination(for: URL.self) { urls, _ in handleDrop(urls) }
+        .fileDrop(.review)
         .toolbar { toolbar }
         .navigationTitle(review.hasFile ? review.fileName : L("Review"))
         .navigationSubtitle(review.hasFile ? L("Reviewing {0}", review.language.inlineName) : "")
@@ -42,13 +42,6 @@ struct ReviewView: View {
     }
 
     // MARK: Helpers
-
-    private func handleDrop(_ urls: [URL]) -> Bool {
-        let srt: URL? = urls.first { url in url.pathExtension.lowercased() == "srt" }
-        guard let url = srt else { return false }
-        review.load(url: url)
-        return true
-    }
 
     private struct PreviewItem: Identifiable { let id: Int }
 

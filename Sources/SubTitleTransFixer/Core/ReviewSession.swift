@@ -316,10 +316,12 @@ final class ReviewSession {
         panel.allowedContentTypes = MediaLocator.videoExtensions.compactMap { UTType(filenameExtension: $0) }
         panel.message = L("Choose the video that belongs to the subtitles")
         panel.directoryURL = fileURL?.deletingLastPathComponent()
-        if panel.runModal() == .OK, let url = panel.url {
-            media.setVideo(url)
-            audioIssues = []
-        }
+        if panel.runModal() == .OK, let url = panel.url { useVideo(url) }
+    }
+
+    func useVideo(_ url: URL) {
+        media.setVideo(url)
+        audioIssues = []
     }
 
     func clearVideo() {

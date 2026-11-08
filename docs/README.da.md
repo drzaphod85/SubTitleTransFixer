@@ -214,6 +214,18 @@ workflow**; det bliver altid en kladde.
    i filnavnet erstattes med målsprogets:
    `_en.srt` → `_sv.srt`, `.eng.srt` → `.sv.srt`, ellers `.srt` → `.sv.srt`.
 
+### Åbn filer
+
+- **Træk** en `.srt`-fil til vinduet. I *Oversæt* åbnes den til oversættelse,
+  i *Gennemse* til gennemgang. En ramme viser, hvor den havner.
+- **Træk** en `.srt`-fil til appens symbol i Dock eller Finder, eller vælg
+  **Åbn med → SubTitle TransFixer** i Finder. For at åbne undertekster med
+  dobbeltklik: **Vis info → Åbn med → SubTitle TransFixer → Skift alle…**.
+- Filer, der åbnes fra Finder eller Dock, oversættes, medmindre de allerede er
+  på målsproget – så gennemgås de. Vises *Gennemse*, gennemgås de.
+- En video, der slippes på *Gennemse*, bruges som gennemgangens video, og
+  `.md`-, `.txt`- eller `.json`-filer tilbydes til import som prompter.
+
 ## Indstillinger
 
 | Indstilling | Standard | I det oprindelige script |

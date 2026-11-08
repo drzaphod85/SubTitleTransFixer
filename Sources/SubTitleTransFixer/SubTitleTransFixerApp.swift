@@ -132,10 +132,30 @@ struct SubTitleTransFixerApp: App {
 }
 
 /// Makes the app behave like a normal app even when started with `swift run`,
-/// and asks about unsaved review changes before quitting.
+/// opens files from Finder and the Dock, and asks about unsaved review changes
+/// before quitting.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    weak var model: AppModel?
+    weak var model: AppModel? {
+        didSet { openPendingFiles() }
+    }
+
+    /// Files that arrive before the window (and the model) exists, e.g. when
+    /// the app is started by double-clicking a subtitle file.
+    private var pendingFiles: [URL] = []
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        pendingFiles += urls
+        openPendingFiles()
+    }
+
+    private func openPendingFiles() {
+        guard let model, !pendingFiles.isEmpty else { return }
+        let urls = pendingFiles
+        pendingFiles = []
+        model.open(urls)
+        NSApp.activate(ignoringOtherApps: true)
+    }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let review = model?.review else { return .terminateNow }

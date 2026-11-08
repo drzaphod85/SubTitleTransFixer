@@ -46,12 +46,7 @@ struct ContentView: View {
                 }
             }
             .navigationSplitViewColumnWidth(min: 200, ideal: 240)
-            .dropDestination(for: URL.self) { urls, _ in
-                let prompts = urls.filter { ["md", "markdown", "txt", "json"].contains($0.pathExtension.lowercased()) }
-                guard !prompts.isEmpty else { return false }
-                model.importFiles(prompts)
-                return true
-            }
+            .fileDrop(model.selection == .review ? .review : .translate)
             .toolbar {
                 ToolbarItem {
                     Button { model.importPanel() } label: {

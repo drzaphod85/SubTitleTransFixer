@@ -228,6 +228,18 @@ Release → Run workflow**; that always makes a draft.
    code in the file name is replaced with the target language's:
    `_en.srt` → `_sv.srt`, `.eng.srt` → `.sv.srt`, otherwise `.srt` → `.sv.srt`.
 
+### Opening files
+
+- **Drag** a `.srt` file onto the window. In *Translate* it is opened for
+  translation, in *Review* for review. A frame shows where it will go.
+- **Drag** a `.srt` file onto the app's icon in the Dock or Finder, or use
+  **Open With → SubTitle TransFixer** in Finder. To open subtitles with a
+  double-click, choose **Get Info → Open with → SubTitle TransFixer → Change All…**.
+- Files opened from Finder or the Dock are translated, unless they are already
+  in the target language: then they are reviewed. If *Review* is shown, they are reviewed.
+- A video dropped on *Review* is used as the review's video, and `.md`, `.txt`
+  or `.json` files are offered for import as prompts.
+
 ## Settings
 
 | Setting | Default | In the original script |

@@ -214,6 +214,18 @@ workflow**; það verða alltaf drög.
    í skráarheitinu er skipt út fyrir kóða markmálsins:
    `_en.srt` → `_sv.srt`, `.eng.srt` → `.sv.srt`, annars `.srt` → `.sv.srt`.
 
+### Opna skrár
+
+- **Dragðu** `.srt`-skrá inn í gluggann. Í *Þýða* er hún opnuð til þýðingar,
+  í *Yfirfara* til yfirferðar. Rammi sýnir hvert hún fer.
+- **Dragðu** `.srt`-skrá á tákn forritsins í Dock eða Finder, eða veldu
+  **Opna með → SubTitle TransFixer** í Finder. Til að opna skjátexta með
+  tvísmelli: **Sýna upplýsingar → Opna með → SubTitle TransFixer → Breyta öllum…**.
+- Skrár sem eru opnaðar úr Finder eða Dock eru þýddar, nema þær séu þegar á
+  markmálinu – þá eru þær yfirfarnar. Ef *Yfirfara* er opið eru þær yfirfarnar.
+- Myndband sem er sleppt á *Yfirfara* er notað sem myndband yfirferðarinnar, og
+  `.md`-, `.txt`- eða `.json`-skrár eru boðnar til innflutnings sem kvaðningar.
+
 ## Stillingar
 
 | Stilling | Sjálfgefið | Í upprunalegu skriftunni |

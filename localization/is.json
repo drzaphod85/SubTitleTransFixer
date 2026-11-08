@@ -423,5 +423,10 @@
  "Analysing the audio … this takes a few seconds per episode.": "Greini hljóðið … það tekur nokkrar sekúndur fyrir hvern þátt.",
  "The audio suggests moving the start {0} s and the end {1} s.": "Hljóðið bendir til að færa upphafið um {0} s og endinn um {1} s.",
  "The audio analysis suggests new times for {0} subtitles. Play them to check before you accept.": "Hljóðgreiningin leggur til nýja tíma fyrir {0} skjátexta. Spilaðu þá og athugaðu áður en þú samþykkir.",
- "The audio could not be analysed.": "Ekki tókst að greina hljóðið."
+ "The audio could not be analysed.": "Ekki tókst að greina hljóðið.",
+ "Drop to review": "Slepptu til að yfirfara",
+ "Drop to translate": "Slepptu til að þýða",
+ "Drop to open": "Slepptu til að opna",
+ "Open “{0}”?": "Opna „{0}“?",
+ "The translation of “{0}” will be closed. Save it first if you want to keep it.": "Þýðingunni á „{0}“ verður lokað. Vistaðu hana fyrst ef þú vilt halda henni."
 }

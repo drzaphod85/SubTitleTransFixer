@@ -226,6 +226,19 @@ Release → Run workflow**; siitä tulee aina luonnos.
    Tiedostonimen kielikoodi korvataan kohdekielen koodilla:
    `_en.srt` → `_sv.srt`, `.eng.srt` → `.sv.srt`, muuten `.srt` → `.sv.srt`.
 
+### Tiedostojen avaaminen
+
+- **Vedä** `.srt`-tiedosto ikkunaan. *Käännä*-näkymässä se avataan
+  käännettäväksi, *Tarkista*-näkymässä tarkistettavaksi. Kehys näyttää, minne se menee.
+- **Vedä** `.srt`-tiedosto sovelluksen symbolin päälle Dockissa tai Finderissa,
+  tai valitse Finderissa **Avaa sovelluksella → SubTitle TransFixer**. Jos haluat
+  avata tekstitykset kaksoisosoittamalla: **Näytä tiedot → Avaa sovelluksella →
+  SubTitle TransFixer → Muuta kaikki…**.
+- Finderista tai Dockista avatut tiedostot käännetään, ellei niitä ole jo
+  kirjoitettu kohdekielellä – silloin ne tarkistetaan. Jos *Tarkista* on auki, ne tarkistetaan.
+- *Tarkista*-näkymään pudotettu video otetaan tarkistuksen videoksi, ja `.md`-,
+  `.txt`- tai `.json`-tiedostoja tarjotaan tuotavaksi prompteiksi.
+
 ## Asetukset
 
 | Asetus | Oletus | Alkuperäisessä skriptissä |

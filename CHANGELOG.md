@@ -3,6 +3,15 @@
 All notable changes to SubTitle TransFixer. Versions follow
 [Semantic Versioning](https://semver.org); the newest version is at the top.
 
+## [Unreleased]
+
+### Added
+- Open subtitle files by dragging them onto the window or the Dock icon, with
+  **Open With** in Finder, or with a double-click. A frame shows where a
+  dropped file will go. Files opened from Finder are reviewed if they are
+  already in the target language, otherwise translated.
+- Videos dropped on *Review* are used as the review's video.
+
 ## [1.0.0] – 2026-11-06
 
 The first public version.

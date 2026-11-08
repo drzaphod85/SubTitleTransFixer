@@ -213,6 +213,18 @@ Release → Run workflow**; det blir alltid ett utkast.
    Språkkoden i filnamnet ersätts med målspråkets:
    `_en.srt` → `_sv.srt`, `.eng.srt` → `.sv.srt`, annars `.srt` → `.sv.srt`.
 
+### Öppna filer
+
+- **Dra** en `.srt`-fil till fönstret. I *Översätt* öppnas den för
+  översättning, i *Granska* för granskning. En ram visar vart den hamnar.
+- **Dra** en `.srt`-fil till appens symbol i Dock eller Finder, eller välj
+  **Öppna med → SubTitle TransFixer** i Finder. För att öppna undertexter med
+  dubbelklick: **Visa info → Öppna med → SubTitle TransFixer → Ändra alla…**.
+- Filer som öppnas från Finder eller Dock översätts, om de inte redan är på
+  målspråket – då granskas de. Visas *Granska* så granskas de.
+- En video som släpps på *Granska* används som granskningens video, och
+  `.md`-, `.txt`- eller `.json`-filer erbjuds för import som prompter.
+
 ## Inställningar
 
 | Inställning | Standard | I det ursprungliga skriptet |
