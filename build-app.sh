@@ -81,7 +81,8 @@ $LOCALIZATIONS    </array>
     <array>
         <dict>
             <key>CFBundleTypeName</key><string>SubRip subtitles</string>
-            <key>CFBundleTypeRole</key><string>Viewer</string>
+            <key>CFBundleTypeRole</key><string>Editor</string>
+            <key>LSHandlerRank</key><string>Default</string>
             <key>CFBundleTypeExtensions</key><array><string>srt</string></array>
         </dict>
     </array>

@@ -44,7 +44,7 @@ struct TranslationView: View {
             Divider()
             statusBar
         }
-        .dropDestination(for: URL.self) { urls, _ in handleDrop(urls) }
+        .fileDrop(.translate)
         .inspector(isPresented: $showInspector) {
             InspectorView(selectedSeq: $selectedSeq)
                 .inspectorColumnWidth(min: 280, ideal: 330, max: 460)
@@ -76,13 +76,6 @@ struct TranslationView: View {
     }
 
     // MARK: Helpers
-
-    private func handleDrop(_ urls: [URL]) -> Bool {
-        let srt: URL? = urls.first { url in url.pathExtension.lowercased() == "srt" }
-        guard let url = srt else { return false }
-        session.load(url: url)
-        return true
-    }
 
     /// Closing the question dialog without an answer counts as "skip".
     private var activeQuestionBinding: Binding<TranslatorQuestion?> {

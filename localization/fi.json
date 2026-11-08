@@ -423,5 +423,10 @@
  "Analysing the audio … this takes a few seconds per episode.": "Analysoidaan ääntä … tämä kestää muutaman sekunnin jaksoa kohden.",
  "The audio suggests moving the start {0} s and the end {1} s.": "Äänen perusteella alkua kannattaa siirtää {0} s ja loppua {1} s.",
  "The audio analysis suggests new times for {0} subtitles. Play them to check before you accept.": "Äänianalyysi ehdottaa uusia aikoja {0} repliikille. Toista ja tarkista ne ennen hyväksymistä.",
- "The audio could not be analysed.": "Ääntä ei voitu analysoida."
+ "The audio could not be analysed.": "Ääntä ei voitu analysoida.",
+ "Drop to review": "Pudota tarkistaaksesi",
+ "Drop to translate": "Pudota kääntääksesi",
+ "Drop to open": "Pudota avataksesi",
+ "Open “{0}”?": "Avataanko ”{0}”?",
+ "The translation of “{0}” will be closed. Save it first if you want to keep it.": "Tiedoston ”{0}” käännös suljetaan. Tallenna se ensin, jos haluat säilyttää sen."
 }

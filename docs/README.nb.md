@@ -214,6 +214,18 @@ workflow**; det blir alltid et utkast.
    i filnavnet erstattes med målspråkets:
    `_en.srt` → `_sv.srt`, `.eng.srt` → `.sv.srt`, ellers `.srt` → `.sv.srt`.
 
+### Åpne filer
+
+- **Dra** en `.srt`-fil til vinduet. I *Oversett* åpnes den for oversettelse,
+  i *Gjennomgå* for gjennomgang. En ramme viser hvor den havner.
+- **Dra** en `.srt`-fil til appens symbol i Dock eller Finder, eller velg
+  **Åpne med → SubTitle TransFixer** i Finder. For å åpne undertekster med
+  dobbeltklikk: **Vis info → Åpne med → SubTitle TransFixer → Endre alle…**.
+- Filer som åpnes fra Finder eller Dock oversettes, med mindre de allerede er
+  på målspråket – da gjennomgås de. Vises *Gjennomgå*, gjennomgås de.
+- En video som slippes på *Gjennomgå* brukes som gjennomgangens video, og
+  `.md`-, `.txt`- eller `.json`-filer tilbys for import som prompter.
+
 ## Innstillinger
 
 | Innstilling | Standard | I det opprinnelige skriptet |

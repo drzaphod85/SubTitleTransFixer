@@ -423,5 +423,10 @@
  "Analysing the audio … this takes a few seconds per episode.": "Analyserar ljudet … det tar några sekunder per avsnitt.",
  "The audio suggests moving the start {0} s and the end {1} s.": "Ljudet tyder på att starten bör flyttas {0} s och slutet {1} s.",
  "The audio analysis suggests new times for {0} subtitles. Play them to check before you accept.": "Ljudanalysen föreslår nya tider för {0} repliker. Spela upp dem och kontrollera innan du godtar.",
- "The audio could not be analysed.": "Ljudet kunde inte analyseras."
+ "The audio could not be analysed.": "Ljudet kunde inte analyseras.",
+ "Drop to review": "Släpp för att granska",
+ "Drop to translate": "Släpp för att översätta",
+ "Drop to open": "Släpp för att öppna",
+ "Open “{0}”?": "Öppna ”{0}”?",
+ "The translation of “{0}” will be closed. Save it first if you want to keep it.": "Översättningen av ”{0}” stängs. Spara den först om du vill behålla den."
 }
