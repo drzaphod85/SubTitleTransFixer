@@ -3,7 +3,7 @@
 All notable changes to SubTitle TransFixer. Versions follow
 [Semantic Versioning](https://semver.org); the newest version is at the top.
 
-## [Unreleased]
+## [1.1.0] – 2026-11-08
 
 ### Added
 - Open subtitle files by dragging them onto the window or the Dock icon, with
